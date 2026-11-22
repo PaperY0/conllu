@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.4.0 — 2026-11-22
+
+增强依存的结构化访问、跨句校验与 JSON 输出。
+
+- `Token::enhanced_deps()` / `EnhancedDep`：把 DEPS 拆成 `head:rel`，空节点头保持 `5.1`
+  而不折成单词索引；`_` 返回空数组。
+- `validate_documents(sentences)`：跨句 checks。缺 `# sent_id`（警告）、`sent_id` 重复（错误）、
+  `# newdoc id` 重用、同一文档内段落 id 重用、`# newpar` 出现在 `# newdoc` 之前（警告）。
+  CLI `validate <file> --documents` 两层一起跑；UD 三份 dev 语料为 0 诊断。
+- `Stats::to_json()` / `Coverage::to_json()`：统计与覆盖报告的对象形式。
+  CLI `stats --format json`、`analyze --format json`（`{"files":[...],"total":{...}}`）。
+- 报告排序改用按码点比较的 `compare_labels`：`String::compare` 在本版 core 里先比长度，
+  标签列表会排成 `X, ADJ, ADP, ...`。
+
 ## 0.3.0 — 2026-11-22
 
 按文档评测、多文件覆盖汇总与 TSV 导出。

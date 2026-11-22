@@ -13,12 +13,14 @@ CoNLL-U 是 UD 树库（Universal Dependencies 项目，200+ 语言树库）的�
 - **无损**：原始 10 列全部保留在 `Token` 里，`to_string` 能逐字节还原（含多词 token、空节点、注释），不认识的列不会被"顺手规范化"。
 - **严格报错**：`parse` 对列数、ID 形态、HEAD 数字性做硬校验，出错抛 `ConlluError(line, message)`，行号直接给到源文件。
 - **规范校验**：17 个 UPOS、37 个 UD v2 依存关系（含增强 `ref`）、ID 连续性、单根、自环、成环、DEPS 语法与范围，都按 CoNLL-U 规范检查。
+- **跨句校验**：`validate_documents` 补上句子级检查看不到的东西——缺 `# sent_id`、`sent_id` 重复、`# newdoc id` 重用、同一文档内段落 id 重用。
+- **增强依存可读**：`Token::enhanced_deps()` 把 DEPS 拆成 `EnhancedDep(head, rel)`，空节点头保持 `5.1`，不会被折成单词索引 5。
 - **评测**：`evaluate(gold, pred)` 给出 UAS / LAS（百分制），按 1-based 词序对齐，长度不等的句子计入 `skipped_sentences` 而不是静默丢掉。
 - **树查询**：`children` / `descendants` / `depth` / `is_ancestor` / `is_projective` / `roots` / `path` / `is_single_rooted`。
 - **文档分组**：按 `# newdoc` / `# newpar` 还原 `Document → Paragraph → Sentence` 三层结构，没有边界声明的文件仍算一个匿名文档。
 - **覆盖分析**：`coverage` 一次遍历统计 UPOS 与 DEPREL 命中率、规范外标签、投射性与树深、长句与空节点，CLI 里可直接当语料门槛用；`merge_coverage` 把 dev/test 合成一张表。
 - **按文档评测**：`evaluate_by_document` 按 `# newdoc` 分组算 UAS / LAS，最差的文档排最前；预测漏掉整篇文档时显示为 0 对齐词，不会把分数悄悄摊平。
-- **统计**：句数、词数、多词 token、空节点、注释、最长句、平均句长、涉及的树库。
+- **统计**：句数、词数、多词 token、空节点、注释、最长句、平均句长、涉及的树库；`Stats::to_json()` 与 `Coverage::to_json()` 供别的语言直接取数。
 - **对拍过**：与 Python `conllu` 参考解析器在 UD_English-EWT、UD_Chinese-GSD、UD_Japanese-GSD 的 dev/test 六个切分（6,128 句、107,091 行）上逐字段零差异，见 [DIFF-REPORT.md](DIFF-REPORT.md)。
 
 ## 安装
@@ -47,6 +49,21 @@ test {
 
 `Sentence` 同时保留注释和全部行：`sentence.rows()` 拿到 `Word` / `Multiword` / `Empty` 三类行，`sentence.comment("text")` 直接取 `# text = ...` 的值。
 
+增强依存（DEPS 列）也能直接取结构化结果，空节点引用保持在 `5.1` 这种形态：
+
+```mbt check
+///|
+test {
+  let text = "1\twho\twho\tPRON\tWP\t_\t4\tnsubj\t4:nsubj|5.1:ref\t_\n"
+  let sentences = @conllu.parse(text) catch { _ => [] }
+  let deps = sentences[0].word(1).unwrap().enhanced_deps()
+  assert_eq(deps.length(), 2)
+  assert_eq(deps[0].head(), "4")
+  assert_eq(deps[1].head(), "5.1")
+  assert_eq(deps[1].rel(), "ref")
+}
+```
+
 ## 校验
 
 ```mbt check
@@ -72,6 +89,23 @@ test {
 | `DEPS_FORMAT` / `DEPS_RANGE` / `DEPS_DEPREL` / `DEPS_MISSING` | DEPS 语法、范围、关系名、空节点缺关系 |
 | `UPOS_UNKNOWN` / `DEPREL_UNKNOWN` | 不在 UD v2 标签集内 |
 | `FORM_EMPTY` / `FORM_SPACE` | FORM 为空或含空白 |
+| `SENT_ID_MISSING` / `SENT_ID_DUPLICATE` | 缺 `# sent_id`（警告）/ 重复（错误），由 `validate_documents` 报 |
+| `NEWDOC_ID_DUPLICATE` / `NEWPAR_ID_DUPLICATE` | 文档 id 重用 / 同一文档内段落 id 重用（警告） |
+| `NEWPAR_WITHOUT_DOC` | `# newpar` 出现在任何 `# newdoc` 之前（警告） |
+
+单句层面的错误 `validate` 就能报，但 id 重复这类问题只有把整份文件放在一起看才成立：
+
+```mbt check
+///|
+test {
+  let text = "# newdoc id = d1\n# sent_id = s1\n1\ta\ta\tNOUN\tNN\t_\t0\troot\t_\t_\n\n# sent_id = s1\n1\tb\tb\tNOUN\tNN\t_\t0\troot\t_\t_\n"
+  let sentences = @conllu.parse(text) catch { _ => [] }
+  let diagnostics = @conllu.validate_documents(sentences)
+  assert_eq(diagnostics.length(), 1)
+  assert_eq(diagnostics[0].code, "SENT_ID_DUPLICATE")
+  assert_eq(@conllu.count_errors(diagnostics), 1)
+}
+```
 
 ## 文档与段落
 
@@ -170,7 +204,9 @@ CLI 里 `eval <gold> <pred> --by-document` 直接打表，末尾附整体 total�
 
 ```bash
 moon run cmd/main -- stats      treebank.conllu   # 句数/词数/多词/空节点/最长句/树库
+moon run cmd/main -- stats      treebank.conllu --format json
 moon run cmd/main -- validate   treebank.conllu   # 诊断列表，有 error 时退出码 1
+moon run cmd/main -- validate   treebank.conllu --documents   # 加上跨句 id 检查
 moon run cmd/main -- eval       gold.conllu pred.conllu
 moon run cmd/main -- eval       gold.conllu pred.conllu --by-document
 moon run cmd/main -- labels     gold.conllu pred.conllu   # 按关系拆开的 LAS
@@ -178,6 +214,7 @@ moon run cmd/main -- labels     gold.conllu pred.conllu --format csv
 moon run cmd/main -- docs       treebank.conllu   # 文档/段落结构与句数
 moon run cmd/main -- analyze    treebank.conllu   # 覆盖报告，规范外标签时退出码 1
 moon run cmd/main -- analyze    dev.conllu test.conllu   # 多文件表格 + TOTAL
+moon run cmd/main -- analyze    dev.conllu test.conllu --format json
 moon run cmd/main -- dump       treebank.conllu   # 归一化 dump，用于对拍
 moon run cmd/main -- dump       treebank.conllu --format json
 moon run cmd/main -- dump       treebank.conllu --format tsv
@@ -248,6 +285,8 @@ python3 tools/diff_test.py --report
 | `Token::head() -> Int32?` | HEAD 解析为整数，非数字返回 `None` |
 | `Token::is_word()` / `is_multiword()` / `is_empty_node()` | 行类型判定 |
 | `Token::to_line()` | 还原一行 10 列 |
+| `Token::enhanced_deps() -> Array[EnhancedDep]` | DEPS 拆成 `head:rel`，空节点头原样保留 |
+| `EnhancedDep::head()` / `rel()` / `to_string()` | 单条增强依存 |
 
 **校验**
 
@@ -255,6 +294,7 @@ python3 tools/diff_test.py --report
 | --- | --- |
 | `validate(sentences) -> Array[Diagnostic]` | 全文档校验 |
 | `validate_sentence(sentence)` | 单句校验 |
+| `validate_documents(sentences)` | 跨句 checks：sent_id / newdoc / newpar 的唯一性与缺失 |
 | `count_errors(diagnostics) -> Int32` | 只数 `Error` 级别 |
 | `Diagnostic::to_string()` | `line 12: error [ROOT_COUNT] ...` |
 
@@ -291,6 +331,7 @@ python3 tools/diff_test.py --report
 | `Coverage::projectivity()` | 投射句占比（百分制） |
 | `Coverage::full_upos()` / `full_deprel()` | 是否覆盖全部规范标签 |
 | `Coverage::to_string()` | 多行报告，`analyze` 直接打印 |
+| `Coverage::to_json()` | 同一份数据作为 JSON 对象 |
 
 **评测与统计**
 
@@ -304,6 +345,40 @@ python3 tools/diff_test.py --report
 | `LabelScore::las()` / `to_string()` | 单关系准确率 |
 | `stats(sentences) -> Stats` | 句数、词数、多词、空节点、注释、最长句、树库 |
 | `Stats::average_length()` / `to_string()` | 平均句长 / 一行摘要 |
+| `Stats::to_json()` | 统计结果作为 JSON 对象 |
+
+## 端到端
+
+一份样例（`examples/sample.conllu`，随仓库提供）把全部子命令走一遍，输出都是真实跑出来的：
+
+```bash
+moon run cmd/main -- stats      examples/sample.conllu
+# sentences=1 words=5 multiword=0 empty=0 comments=2 max_len=5 avg_len=5 docs=0
+# errors=0
+
+moon run cmd/main -- validate   examples/sample.conllu --documents
+# diagnostics=0 errors=0 warnings=0
+
+moon run cmd/main -- docs       examples/sample.conllu
+# doc    1 id=-                        sentences=    1 paragraphs=1
+# documents=1 paragraphs=1
+
+moon run cmd/main -- dump       examples/sample.conllu --format tsv
+# sentence	sent_line	kind	id	form	lemma	upos	xpos	feats	head	deprel	deps	misc
+# 1	1	word	1	I	I	PRON	PRP	_	2	nsubj	_	_
+
+moon run cmd/main -- compress   examples/sample.conllu /tmp/sample.conllu.gz
+# compress: 1 sentences 216 -> 186 bytes (86.11% of input)
+# verify: /tmp/sample.conllu.gz reads back identically
+```
+
+评测流程则是三步：`stats` / `validate` 确认语料可用，`eval` 出总分，`eval --by-document` 与 `labels` 定位错在哪些文档、哪些关系：
+
+```bash
+moon run cmd/main -- eval   gold.conllu pred.conllu
+moon run cmd/main -- eval   gold.conllu pred.conllu --by-document
+moon run cmd/main -- labels gold.conllu pred.conllu --format csv
+```
 
 ## 许可与语料
 
