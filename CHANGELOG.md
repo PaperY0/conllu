@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.1.1 — 2026-11-22
+
+评测与命令行补强，API 与 0.1.0 兼容。
+
+- `EvalResult::uuas()`：不计方向的附着分数，解析器把方向搞反但仍找对词对时给分。
+- `evaluate_by_label()` / `LabelScore`：按 gold 依存关系拆开的 LAS，最差的关系排最前。
+- `path(sentence, from, to)`：沿 HEAD 走到指定祖先的路径（`to = 0` 走到根）。
+- `is_single_rooted(sentence)`：单根检查。
+- CLI 新增 `labels <gold> <pred>`；`dump` 支持 `--format json`。
+- CLI 可直接读 `.conllu.gz`（core `compress/gzip` + UTF-8 解码），六个子命令都适用。
+- 差分语料增加 UD_Japanese-GSD：六个切分共 6,128 句、107,091 行，零字段差异。
+- 差分脚本新增 JSON dump 一致性检查（可解析、句子与 token 数与行式 dump 相同）。
+- README 增加 API 参考，`moon doc` 可本地生成文档。
+
 ## 0.1.0 — 2026-11-22
 
 首个版本，覆盖 CoNLL-U 的读写、校验、树操作与评测四层能力。
