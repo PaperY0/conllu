@@ -272,6 +272,24 @@ test "eval: a prediction missing a document is counted as skipped" {
 }
 
 ///|
+test "coverage: merging files unions the labels and weights the depth" {
+  let a = @conllu.coverage(@conllu.parse(simple))
+  let b = @conllu.coverage(@conllu.parse(complex))
+  let merged = @conllu.merge_coverage([a, b])
+  assert_eq(merged.sentences, 3)
+  assert_eq(merged.words, 9)
+  // 5 tags in `simple` plus 4 in `complex`, with VERB in both: 8 distinct.
+  assert_eq(merged.upos_used.length(), 8)
+  assert_eq(merged.unknown_upos.length(), 0)
+  assert_eq(merged.multiword_tokens, 1)
+  assert_eq(merged.empty_nodes, 1)
+  // The average is rebuilt from the token-weighted depth totals, not by
+  // averaging the two per-file averages.
+  let expected = (a.depth_total + b.depth_total).to_double() / 9.0
+  assert_eq(merged.avg_depth, expected)
+}
+
+///|
 test "stats: counts rows by kind" {
   let sentences = @conllu.parse(complex)
   let st = @conllu.stats(sentences)

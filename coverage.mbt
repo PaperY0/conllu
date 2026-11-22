@@ -20,6 +20,9 @@ pub struct Coverage {
   mut multi_rooted : Int32
   mut max_depth : Int32
   mut avg_depth : Double
+  /// Sum of every word's tree depth, kept so merged reports can recompute an
+  /// average weighted by tokens instead of averaging averages.
+  mut depth_total : Int32
   /// Sentences with more than 50 words; long inputs are where parsers and
   /// memory budgets break first.
   mut long_sentences : Int32
@@ -87,6 +90,7 @@ pub fn coverage(sentences : Array[Sentence]) -> Coverage {
     multi_rooted: 0,
     max_depth: 0,
     avg_depth: 0.0,
+    depth_total: 0,
     long_sentences: 0,
     empty_nodes: 0,
     multiword_tokens: 0,
@@ -157,6 +161,7 @@ pub fn coverage(sentences : Array[Sentence]) -> Coverage {
   } else {
     depth_sum.to_double() / cov.words.to_double()
   }
+  cov.depth_total = depth_sum
   cov.upos_used.sort_by(String::compare)
   cov.deprel_used.sort_by(String::compare)
   cov.unknown_upos.sort_by(String::compare)
@@ -181,6 +186,78 @@ fn is_known_upos(tag : String) -> Bool {
 ///|
 fn is_known_deprel(base : String) -> Bool {
   deprel_tags.contains(base)
+}
+
+///|
+fn merge_into(target : Array[String], source : Array[String]) -> Unit {
+  for item in source {
+    push_unique(target, item)
+  }
+}
+
+///|
+/// Combines per-file coverages into one corpus-wide view: counters add up,
+/// used labels are unioned, missing labels are recomputed against the spec, and
+/// the average depth is rebuilt from the token-weighted depth total so a merged
+/// report does not average averages.
+pub fn merge_coverage(items : Array[Coverage]) -> Coverage {
+  let merged : Coverage = {
+    sentences: 0,
+    words: 0,
+    upos_used: [],
+    upos_missing: [],
+    deprel_used: [],
+    deprel_missing: [],
+    unknown_upos: [],
+    unknown_deprel: [],
+    untagged: 0,
+    projective: 0,
+    non_projective: 0,
+    single_rooted: 0,
+    multi_rooted: 0,
+    max_depth: 0,
+    avg_depth: 0.0,
+    depth_total: 0,
+    long_sentences: 0,
+    empty_nodes: 0,
+    multiword_tokens: 0,
+    documents: 0,
+    paragraphs: 0,
+  }
+  for item in items {
+    merged.sentences = merged.sentences + item.sentences
+    merged.words = merged.words + item.words
+    merged.untagged = merged.untagged + item.untagged
+    merged.projective = merged.projective + item.projective
+    merged.non_projective = merged.non_projective + item.non_projective
+    merged.single_rooted = merged.single_rooted + item.single_rooted
+    merged.multi_rooted = merged.multi_rooted + item.multi_rooted
+    merged.long_sentences = merged.long_sentences + item.long_sentences
+    merged.empty_nodes = merged.empty_nodes + item.empty_nodes
+    merged.multiword_tokens = merged.multiword_tokens + item.multiword_tokens
+    merged.documents = merged.documents + item.documents
+    merged.paragraphs = merged.paragraphs + item.paragraphs
+    merged.depth_total = merged.depth_total + item.depth_total
+    if item.max_depth > merged.max_depth {
+      merged.max_depth = item.max_depth
+    }
+    merge_into(merged.upos_used, item.upos_used)
+    merge_into(merged.deprel_used, item.deprel_used)
+    merge_into(merged.unknown_upos, item.unknown_upos)
+    merge_into(merged.unknown_deprel, item.unknown_deprel)
+  }
+  merged.upos_used.sort_by(String::compare)
+  merged.deprel_used.sort_by(String::compare)
+  merged.unknown_upos.sort_by(String::compare)
+  merged.unknown_deprel.sort_by(String::compare)
+  merged.upos_missing = missing_from(upos_tags, merged.upos_used)
+  merged.deprel_missing = missing_from(deprel_tags, merged.deprel_used)
+  merged.avg_depth = if merged.words == 0 {
+    0.0
+  } else {
+    merged.depth_total.to_double() / merged.words.to_double()
+  }
+  merged
 }
 
 ///|

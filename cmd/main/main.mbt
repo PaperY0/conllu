@@ -19,7 +19,7 @@ fn usage() -> Unit {
   )
   println("  conllu docs <file>              document and paragraph structure")
   println(
-    "  conllu analyze <file>           coverage report: tags, trees, sentence shapes",
+    "  conllu analyze <file>...        coverage report: tags, trees, sentence shapes",
   )
   println(
     "  conllu compress <in> <out>      serialize and write back, gzip when <out> ends in .gz",
@@ -81,14 +81,58 @@ fn file_size(path : String) -> Int32 {
 }
 
 ///|
-/// Coverage report. Exits non-zero when the corpus uses tags or relations that
-/// the UD spec does not define, so the command doubles as a corpus gate.
-fn cmd_analyze(path : String) -> Unit {
-  let cov = @conllu.coverage(load(path))
-  println(cov.to_string())
-  if cov.unknown_upos.length() > 0 || cov.unknown_deprel.length() > 0 {
+/// Last path segment, so a table stays readable when the inputs are long paths.
+fn basename(path : String) -> String {
+  let parts = replace_all(path, "\\", "/").split("/").to_array()
+  if parts.length() == 0 {
+    path
+  } else {
+    parts.at(parts.length() - 1).to_owned()
+  }
+}
+
+///|
+/// Coverage report. One file prints the full report; several files print one
+/// row per file plus a merged TOTAL row, which is how dev and test splits get
+/// compared without running the command twice by hand. Exits non-zero when the
+/// corpus uses tags or relations the UD spec does not define, so the command
+/// doubles as a corpus gate.
+fn cmd_analyze(paths : Array[String]) -> Unit {
+  if paths.length() == 1 {
+    let cov = @conllu.coverage(load(paths.at(0)))
+    println(cov.to_string())
+    if cov.unknown_upos.length() > 0 || cov.unknown_deprel.length() > 0 {
+      @env.exit(1)
+    }
+    return
+  }
+  let coverages : Array[@conllu.Coverage] = []
+  for path in paths {
+    coverages.push(@conllu.coverage(load(path)))
+  }
+  println(
+    "file                            sentences   words  upos deprel unknown projective  depth",
+  )
+  let mut i = 0
+  while i < paths.length() {
+    print_coverage_row(basename(paths.at(i)), coverages.at(i))
+    i = i + 1
+  }
+  let merged = @conllu.merge_coverage(coverages)
+  print_coverage_row("TOTAL", merged)
+  if merged.unknown_upos.length() > 0 || merged.unknown_deprel.length() > 0 {
     @env.exit(1)
   }
+}
+
+///|
+fn print_coverage_row(name : String, cov : @conllu.Coverage) -> Unit {
+  let upos = "\{cov.upos_used.length()}/\{17}"
+  let deprel = "\{cov.deprel_used.length()}/\{37}"
+  let unknown = cov.unknown_upos.length() + cov.unknown_deprel.length()
+  println(
+    "\{pad_right(name, 30)} \{pad(cov.sentences.to_string(), 9)} \{pad(cov.words.to_string(), 7)} \{pad(upos, 5)} \{pad(deprel, 6)} \{pad(unknown.to_string(), 7)} \{pad(pct(cov.projectivity()) + "%", 10)} \{pad(cov.max_depth.to_string(), 6)}",
+  )
 }
 
 ///|
@@ -549,11 +593,17 @@ fn main {
         @env.exit(2)
       }
     "analyze" =>
-      if args.length() != 3 {
+      if args.length() < 3 {
         usage()
         @env.exit(2)
       } else {
-        cmd_analyze(args.at(2))
+        let paths : Array[String] = []
+        let mut i = 2
+        while i < args.length() {
+          paths.push(args.at(i))
+          i = i + 1
+        }
+        cmd_analyze(paths)
       }
     "docs" =>
       if args.length() != 3 {
