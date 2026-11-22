@@ -229,6 +229,85 @@ pub fn evaluate_by_label(
 }
 
 ///|
+/// Scores of one document: the aggregate `EvalResult` of its sentences, keyed by
+/// the `# newdoc id` of the gold file. A parser can be 90% LAS overall and still
+/// lose entire documents, which is what this view exposes.
+pub struct DocumentScore {
+  id : String
+  result : EvalResult
+}
+
+///|
+pub fn DocumentScore::id(self : DocumentScore) -> String {
+  self.id
+}
+
+///|
+pub fn DocumentScore::sentences(self : DocumentScore) -> Int32 {
+  self.result.sentence_pairs
+}
+
+///|
+pub fn DocumentScore::tokens(self : DocumentScore) -> Int32 {
+  self.result.aligned_tokens
+}
+
+///|
+pub fn DocumentScore::uas(self : DocumentScore) -> Double {
+  self.result.uas()
+}
+
+///|
+pub fn DocumentScore::las(self : DocumentScore) -> Double {
+  self.result.las()
+}
+
+///|
+pub fn DocumentScore::to_string(self : DocumentScore) -> String {
+  "doc id=\{self.id} sentences=\{self.sentences()} tokens=\{self.tokens()} UAS=\{self.uas()}% LAS=\{self.las()}%"
+}
+
+///|
+/// Evaluates document by document instead of sentence by sentence. Documents
+/// come from `# newdoc` in the gold file; predictions are matched by position,
+/// so a prediction that merged or dropped a document shows up as a document
+/// with skipped sentences rather than as a silently reshuffled score.
+/// Documents are returned worst-first by LAS.
+pub fn evaluate_by_document(
+  gold : Array[Sentence],
+  pred : Array[Sentence],
+) -> Array[DocumentScore] {
+  let gold_docs = documents(gold)
+  let pred_docs = documents(pred)
+  let out : Array[DocumentScore] = []
+  let mut i = 0
+  while i < gold_docs.length() {
+    let gold_sentences = gold_docs.at(i).sentences()
+    let pred_sentences = if i < pred_docs.length() {
+      pred_docs.at(i).sentences()
+    } else {
+      let none : Array[Sentence] = []
+      none
+    }
+    out.push({
+      id: gold_docs.at(i).id(),
+      result: evaluate(gold_sentences, pred_sentences),
+    })
+    i = i + 1
+  }
+  out.sort_by(fn(a, b) {
+    let la = a.result.las()
+    let lb = b.result.las()
+    if la != lb {
+      (la - lb).to_int()
+    } else {
+      String::compare(a.id, b.id)
+    }
+  })
+  out
+}
+
+///|
 /// One-line summary of the evaluation, as printed by the CLI.
 pub fn EvalResult::to_string(self : EvalResult) -> String {
   let uas = (self.uas() * 100.0).to_int().to_double() / 100.0

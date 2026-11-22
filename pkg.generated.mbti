@@ -16,6 +16,8 @@ pub fn documents(Array[Sentence]) -> Array[Document]
 
 pub fn evaluate(Array[Sentence], Array[Sentence]) -> EvalResult
 
+pub fn evaluate_by_document(Array[Sentence], Array[Sentence]) -> Array[DocumentScore]
+
 pub fn evaluate_by_label(Array[Sentence], Array[Sentence]) -> Array[LabelScore]
 
 pub fn is_ancestor(Sentence, Int32, Int32) -> Bool
@@ -93,6 +95,17 @@ pub fn Document::paragraphs(Self) -> Array[Paragraph]
 pub fn Document::sentence_count(Self) -> Int32
 pub fn Document::sentences(Self) -> Array[Sentence]
 pub fn Document::to_string(Self) -> String
+
+pub struct DocumentScore {
+  id : String
+  result : EvalResult
+}
+pub fn DocumentScore::id(Self) -> String
+pub fn DocumentScore::las(Self) -> Double
+pub fn DocumentScore::sentences(Self) -> Int32
+pub fn DocumentScore::to_string(Self) -> String
+pub fn DocumentScore::tokens(Self) -> Int32
+pub fn DocumentScore::uas(Self) -> Double
 
 pub struct EvalResult {
   mut sentence_pairs : Int32

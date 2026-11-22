@@ -237,6 +237,41 @@ test "coverage: labels outside the UD spec are reported" {
 }
 
 ///|
+test "eval: documents are scored one by one, worst first" {
+  let gold : String = "# newdoc id = d1\n1\ta\ta\tNOUN\tNN\t_\t2\tnsubj\t_\t_\n2\tb\tb\tVERB\tVB\t_\t0\troot\t_\t_\n\n" +
+    "# newdoc id = d2\n1\tc\tc\tNOUN\tNN\t_\t2\tnsubj\t_\t_\n2\td\td\tVERB\tVB\t_\t0\troot\t_\t_\n"
+  let pred : String = "# newdoc id = d1\n1\ta\ta\tNOUN\tNN\t_\t2\tnsubj\t_\t_\n2\tb\tb\tVERB\tVB\t_\t0\troot\t_\t_\n\n" +
+    "# newdoc id = d2\n1\tc\tc\tNOUN\tNN\t_\t0\troot\t_\t_\n2\td\td\tVERB\tVB\t_\t1\tnsubj\t_\t_\n"
+  let scores = @conllu.evaluate_by_document(
+    @conllu.parse(gold),
+    @conllu.parse(pred),
+  )
+  assert_eq(scores.length(), 2)
+  // d2 lost every edge, so it ranks first; d1 is intact.
+  assert_eq(scores[0].id(), "d2")
+  assert_eq(scores[0].las(), 0.0)
+  assert_eq(scores[0].sentences(), 1)
+  assert_eq(scores[0].tokens(), 2)
+  assert_eq(scores[1].id(), "d1")
+  assert_eq(scores[1].las(), 100.0)
+}
+
+///|
+test "eval: a prediction missing a document is counted as skipped" {
+  let gold : String = "# newdoc id = d1\n1\ta\ta\tNOUN\tNN\t_\t2\tnsubj\t_\t_\n2\tb\tb\tVERB\tVB\t_\t0\troot\t_\t_\n\n# newdoc id = d2\n1\tc\tc\tNOUN\tNN\t_\t2\tnsubj\t_\t_\n2\td\td\tVERB\tVB\t_\t0\troot\t_\t_\n"
+  let pred : String = "# newdoc id = d1\n1\ta\ta\tNOUN\tNN\t_\t2\tnsubj\t_\t_\n2\tb\tb\tVERB\tVB\t_\t0\troot\t_\t_\n"
+  let scores = @conllu.evaluate_by_document(
+    @conllu.parse(gold),
+    @conllu.parse(pred),
+  )
+  assert_eq(scores.length(), 2)
+  assert_eq(scores[1].id(), "d1")
+  assert_eq(scores[1].las(), 100.0)
+  // d2 has no predicted sentence, so nothing was aligned and both words are skipped.
+  assert_eq(scores[0].tokens(), 0)
+}
+
+///|
 test "stats: counts rows by kind" {
   let sentences = @conllu.parse(complex)
   let st = @conllu.stats(sentences)

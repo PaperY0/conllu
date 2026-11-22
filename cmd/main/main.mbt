@@ -5,7 +5,9 @@ fn usage() -> Unit {
   println("Usage:")
   println("  conllu stats <file>              corpus statistics")
   println("  conllu validate <file>          structural validation")
-  println("  conllu eval <gold> <pred>       UAS / LAS of a predicted parse")
+  println(
+    "  conllu eval <gold> <pred>       UAS / LAS of a predicted parse (--by-document)",
+  )
   println(
     "  conllu labels <gold> <pred>     per-relation labelled accuracy (--format csv)",
   )
@@ -197,6 +199,27 @@ fn csv_field(value : String) -> String {
     "\"" + replace_all(value, "\"", "\"\"") + "\""
   } else {
     value
+  }
+}
+
+///|
+/// Per-document scores: same alignment as `eval`, but grouped by the gold
+/// `# newdoc` ids, worst document first, followed by the corpus total.
+fn cmd_eval_by_document(gold_path : String, pred_path : String) -> Unit {
+  let gold = load(gold_path)
+  let pred = load(pred_path)
+  let scores = @conllu.evaluate_by_document(gold, pred)
+  println("doc                              sentences tokens    UAS     LAS")
+  for score in scores {
+    let id = if score.id().is_empty() { "-" } else { score.id() }
+    println(
+      "\{pad_right(id, 32)} \{pad(score.sentences().to_string(), 9)} \{pad(score.tokens().to_string(), 6)} \{pad(pct(score.uas()) + "%", 6)} \{pad(pct(score.las()) + "%", 6)}",
+    )
+  }
+  let total = @conllu.evaluate(gold, pred)
+  println("total: " + total.to_string())
+  if total.aligned_tokens == 0 {
+    @env.exit(1)
   }
 }
 
@@ -483,11 +506,13 @@ fn main {
         cmd_validate(args.at(2))
       }
     "eval" =>
-      if args.length() != 4 {
+      if args.length() == 4 {
+        cmd_eval(args.at(2), args.at(3))
+      } else if args.length() == 5 && args.at(4) == "--by-document" {
+        cmd_eval_by_document(args.at(2), args.at(3))
+      } else {
         usage()
         @env.exit(2)
-      } else {
-        cmd_eval(args.at(2), args.at(3))
       }
     "labels" =>
       if args.length() == 4 {
