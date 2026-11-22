@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [wasm, wasm-gc, js]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up MoonBit
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> $GITHUB_PATH
+      - name: Version
+        run: moon version --all
+      - name: Update dependencies
+        run: moon update
+      - name: Check
+        run: moon check --target ${{ matrix.target }}
+      - name: Test
+        run: moon test --target ${{ matrix.target }}
+
+  interface:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up MoonBit
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> $GITHUB_PATH
+      - name: Update dependencies
+        run: moon update
+      - name: Public interface must be in sync
+        run: |
+          moon info
+          git diff --exit-code -- '*.mbti'
+      - name: Formatting must be stable
+        run: |
+          moon fmt
+          git diff --exit-code
+
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up MoonBit
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> $GITHUB_PATH
+      - name: Update dependencies
+        run: moon update
+      - name: Install reference parser
+        run: python3 -m pip install --upgrade conllu
+      - name: Fetch UD treebanks (CC BY-SA 4.0 test fixtures, not committed)
+        run: python3 tools/fetch_corpus.py
+      - name: Differential test
+        run: python3 tools/diff_test.py
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diff-report
+          path: DIFF-REPORT.md
+          if-no-files-found: ignore
