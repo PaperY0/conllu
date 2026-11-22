@@ -151,6 +151,22 @@ test "eval: label-wise accuracy ranks the worst relation first" {
 }
 
 ///|
+test "tree: path upwards and single-rooted check" {
+  let sentences = @conllu.parse(simple)
+  let s = sentences[0]
+  assert_true(@conllu.is_single_rooted(s))
+  let p = @conllu.path(s, 3, 2).unwrap()
+  assert_eq(p, [3, 4, 2])
+  let to_root = @conllu.path(s, 5, 0).unwrap()
+  assert_eq(to_root, [5, 2, 0])
+  assert_true(@conllu.path(s, 1, 3) is None)
+  // Two roots: the crossing fixture is not single-rooted.
+  let crossing : String = "1\ta\ta\tNOUN\tNN\t_\t3\tdep\t_\t_\n2\tb\tb\tNOUN\tNN\t_\t4\tdep\t_\t_\n3\tc\tc\tNOUN\tNN\t_\t0\troot\t_\t_\n4\td\td\tNOUN\tNN\t_\t0\troot\t_\t_\n"
+  let cs = @conllu.parse(crossing)
+  assert_false(@conllu.is_single_rooted(cs[0]))
+}
+
+///|
 test "stats: counts rows by kind" {
   let sentences = @conllu.parse(complex)
   let st = @conllu.stats(sentences)

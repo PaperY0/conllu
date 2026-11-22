@@ -126,3 +126,44 @@ pub fn is_projective(sentence : Sentence) -> Bool {
 pub fn roots(sentence : Sentence) -> Array[Int32] {
   children(sentence, 0)
 }
+
+///|
+/// True when the sentence has exactly one word attached to the root. A
+/// well-formed CoNLL-U sentence is single-rooted by definition; this is the
+/// cheap check for tooling that only needs that one property.
+pub fn is_single_rooted(sentence : Sentence) -> Bool {
+  roots(sentence).length() == 1
+}
+
+///|
+/// Dependency path from `from` up to `to`, both inclusive, in the order
+/// `from, ..., to`. Returns `None` when `to` is not an ancestor of `from` or an
+/// index is out of range. `to = 0` walks all the way up to the artificial root.
+pub fn path(sentence : Sentence, from : Int32, to : Int32) -> Array[Int32]? {
+  let n = sentence.word_count()
+  if from < 1 || from > n || to < 0 || to > n {
+    return None
+  }
+  let out : Array[Int32] = []
+  let mut cur = from
+  let mut steps : Int32 = 0
+  while steps <= n {
+    out.push(cur)
+    if cur == to {
+      return Some(out)
+    }
+    if cur == 0 {
+      return None
+    }
+    match sentence.word(cur) {
+      Some(row) =>
+        match row.head() {
+          Some(h) => if h == cur { return None } else { cur = h }
+          None => return None
+        }
+      None => return None
+    }
+    steps = steps + 1
+  }
+  None
+}

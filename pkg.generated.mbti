@@ -18,9 +18,13 @@ pub fn is_ancestor(Sentence, Int32, Int32) -> Bool
 
 pub fn is_projective(Sentence) -> Bool
 
+pub fn is_single_rooted(Sentence) -> Bool
+
 pub fn max_depth(Sentence) -> Int32
 
 pub fn parse(String) -> Array[Sentence] raise ConlluError
+
+pub fn path(Sentence, Int32, Int32) -> Array[Int32]?
 
 pub fn roots(Sentence) -> Array[Int32]
 
