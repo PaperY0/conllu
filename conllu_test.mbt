@@ -312,6 +312,41 @@ test "coverage: merging files unions the labels and weights the depth" {
 }
 
 ///|
+test "validate: document checks catch reused ids across sentences" {
+  let text : String = "# newdoc id = d1\n# newpar id = p1\n# sent_id = s1\n1\ta\ta\tNOUN\tNN\t_\t0\troot\t_\t_\n\n" +
+    "# sent_id = s1\n1\tb\tb\tNOUN\tNN\t_\t0\troot\t_\t_\n\n" +
+    "# newdoc id = d1\n# sent_id = s2\n1\tc\tc\tNOUN\tNN\t_\t0\troot\t_\t_\n"
+  let diagnostics = @conllu.validate_documents(@conllu.parse(text))
+  assert_eq(diagnostics.length(), 2)
+  assert_eq(@conllu.count_errors(diagnostics), 1)
+  // The duplicate sent_id is an error; the reused document id is a warning.
+  assert_eq(diagnostics[0].code, "SENT_ID_DUPLICATE")
+  assert_eq(diagnostics[1].code, "NEWDOC_ID_DUPLICATE")
+}
+
+///|
+test "validate: paragraph ids are only unique inside their document" {
+  let text : String = "# newdoc id = d1\n# newpar id = p1\n# sent_id = s1\n1\ta\ta\tNOUN\tNN\t_\t0\troot\t_\t_\n\n" +
+    "# newdoc id = d2\n# newpar id = p1\n# sent_id = s2\n1\tb\tb\tNOUN\tNN\t_\t0\troot\t_\t_\n"
+  // Same paragraph id in two different documents is legal: nothing reported.
+  assert_eq(@conllu.validate_documents(@conllu.parse(text)).length(), 0)
+  let same_doc : String = "# newdoc id = d1\n# newpar id = p1\n# sent_id = s1\n1\ta\ta\tNOUN\tNN\t_\t0\troot\t_\t_\n\n" +
+    "# newpar id = p1\n# sent_id = s2\n1\tb\tb\tNOUN\tNN\t_\t0\troot\t_\t_\n"
+  let diagnostics = @conllu.validate_documents(@conllu.parse(same_doc))
+  assert_eq(diagnostics.length(), 1)
+  assert_eq(diagnostics[0].code, "NEWPAR_ID_DUPLICATE")
+}
+
+///|
+test "validate: missing sent_id is a warning, not an error" {
+  let text : String = "1\ta\ta\tNOUN\tNN\t_\t0\troot\t_\t_\n"
+  let diagnostics = @conllu.validate_documents(@conllu.parse(text))
+  assert_eq(diagnostics.length(), 1)
+  assert_eq(diagnostics[0].code, "SENT_ID_MISSING")
+  assert_eq(@conllu.count_errors(diagnostics), 0)
+}
+
+///|
 test "stats: counts rows by kind" {
   let sentences = @conllu.parse(complex)
   let st = @conllu.stats(sentences)

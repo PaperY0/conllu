@@ -4,7 +4,9 @@ fn usage() -> Unit {
   println("")
   println("Usage:")
   println("  conllu stats <file>              corpus statistics")
-  println("  conllu validate <file>          structural validation")
+  println(
+    "  conllu validate <file>          structural validation (--documents: ids across sentences)",
+  )
   println(
     "  conllu eval <gold> <pred>       UAS / LAS of a predicted parse (--by-document)",
   )
@@ -213,14 +215,24 @@ fn cmd_stats(path : String) -> Unit {
 }
 
 ///|
-fn cmd_validate(path : String) -> Unit {
+fn cmd_validate(path : String, documents : Bool) -> Unit {
   let sentences = load(path)
-  let diagnostics = @conllu.validate(sentences)
+  let diagnostics : Array[@conllu.Diagnostic] = []
+  for d in @conllu.validate(sentences) {
+    diagnostics.push(d)
+  }
+  if documents {
+    for d in @conllu.validate_documents(sentences) {
+      diagnostics.push(d)
+    }
+  }
   for d in diagnostics {
     println(d.to_string())
   }
   let errors = @conllu.count_errors(diagnostics)
-  println("diagnostics=\{diagnostics.length()} errors=\{errors}")
+  println(
+    "diagnostics=\{diagnostics.length()} errors=\{errors} warnings=\{diagnostics.length() - errors}",
+  )
   if errors > 0 {
     @env.exit(1)
   }
@@ -571,11 +583,13 @@ fn main {
         cmd_stats(args.at(2))
       }
     "validate" =>
-      if args.length() != 3 {
+      if args.length() == 3 {
+        cmd_validate(args.at(2), false)
+      } else if args.length() == 4 && args.at(3) == "--documents" {
+        cmd_validate(args.at(2), true)
+      } else {
         usage()
         @env.exit(2)
-      } else {
-        cmd_validate(args.at(2))
       }
     "eval" =>
       if args.length() == 4 {

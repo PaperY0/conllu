@@ -42,6 +42,8 @@ pub fn to_string(Array[Sentence]) -> String
 
 pub fn validate(Array[Sentence]) -> Array[Diagnostic]
 
+pub fn validate_documents(Array[Sentence]) -> Array[Diagnostic]
+
 pub fn validate_sentence(Sentence) -> Array[Diagnostic]
 
 // Errors
@@ -109,6 +111,14 @@ pub fn DocumentScore::sentences(Self) -> Int32
 pub fn DocumentScore::to_string(Self) -> String
 pub fn DocumentScore::tokens(Self) -> Int32
 pub fn DocumentScore::uas(Self) -> Double
+
+pub struct EnhancedDep {
+  head : String
+  rel : String
+}
+pub fn EnhancedDep::head(Self) -> String
+pub fn EnhancedDep::rel(Self) -> String
+pub fn EnhancedDep::to_string(Self) -> String
 
 pub struct EvalResult {
   mut sentence_pairs : Int32
@@ -197,6 +207,7 @@ pub struct Token {
   end : Int32
   line : Int32
 }
+pub fn Token::enhanced_deps(Self) -> Array[EnhancedDep]
 pub fn Token::head(Self) -> Int32?
 pub fn Token::is_empty_node(Self) -> Bool
 pub fn Token::is_multiword(Self) -> Bool
