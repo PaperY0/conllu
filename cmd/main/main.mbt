@@ -17,6 +17,9 @@ fn usage() -> Unit {
   println(
     "  conllu dump <file>              stable row dump, for differential testing",
   )
+  println(
+    "                                  --format text|json|tsv (tsv = pandas-ready)",
+  )
   println("  conllu docs <file>              document and paragraph structure")
   println(
     "  conllu analyze <file>...        coverage report: tags, trees, sentence shapes",
@@ -443,6 +446,31 @@ fn cmd_dump_json(path : String) -> Unit {
 }
 
 ///|
+/// Tab-separated table of every row, one header line plus one line per token.
+/// Meant for `pandas.read_csv(..., sep="\t")`: the CoNLL-U columns are already
+/// tab-delimited and cannot contain tabs, so no quoting is needed.
+fn cmd_dump_tsv(path : String) -> Unit {
+  let sentences = load(path)
+  println(
+    "sentence\tsent_line\tkind\tid\tform\tlemma\tupos\txpos\tfeats\thead\tdeprel\tdeps\tmisc",
+  )
+  let mut i = 0
+  for sentence in sentences {
+    i = i + 1
+    for row in sentence.rows() {
+      let kind = match row.kind {
+        @conllu.Word => "word"
+        @conllu.Multiword => "multiword"
+        @conllu.Empty => "empty"
+      }
+      println(
+        "\{i}\t\{sentence.line}\t\{kind}\t\{row.id_raw}\t\{row.form}\t\{row.lemma}\t\{row.upos}\t\{row.xpos}\t\{row.feats}\t\{row.head_raw}\t\{row.deprel}\t\{row.deps}\t\{row.misc}",
+      )
+    }
+  }
+}
+
+///|
 /// Emits one line per row in a stable, diff-friendly format:
 ///   S <words> <multiword> <empty> <comments>
 ///   <kind> <id> <form> <upos> <head> <deprel>
@@ -583,11 +611,15 @@ fn main {
           cmd_dump_json(args.at(2))
         } else if args.at(4) == "text" {
           cmd_dump(args.at(2))
+        } else if args.at(4) == "tsv" {
+          cmd_dump_tsv(args.at(2))
         } else {
-          fail("unknown dump format \{args.at(4)} (expected text or json)")
+          fail("unknown dump format \{args.at(4)} (expected text, json or tsv)")
         }
       } else if args.length() == 4 && args.at(3) == "--format=json" {
         cmd_dump_json(args.at(2))
+      } else if args.length() == 4 && args.at(3) == "--format=tsv" {
+        cmd_dump_tsv(args.at(2))
       } else {
         usage()
         @env.exit(2)

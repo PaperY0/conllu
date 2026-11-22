@@ -129,6 +129,61 @@ def check_json(path: Path, reference_lines: list[str]) -> tuple[bool, str]:
     return True, ""
 
 
+TSV_HEADER = [
+    "sentence",
+    "sent_line",
+    "kind",
+    "id",
+    "form",
+    "lemma",
+    "upos",
+    "xpos",
+    "feats",
+    "head",
+    "deprel",
+    "deps",
+    "misc",
+]
+
+
+def check_tsv(path: Path, reference_lines: list[str]) -> tuple[bool, str]:
+    """The TSV dump must have the documented header and agree with the dump."""
+    code, out, err = run_cli(["dump", str(path), "--format", "tsv"])
+    if code != 0:
+        return False, f"tsv dump failed ({code}): {(err or out).strip()[:120]}"
+    lines = out.splitlines()
+    if not lines:
+        return False, "tsv dump is empty"
+    header = lines[0].split("\t")
+    if header != TSV_HEADER:
+        return False, f"tsv header is {header!r}"
+    body = [line for line in lines[1:] if line.strip()]
+    expected_sentences, expected_rows = counts_from_dump(reference_lines)
+    if len(body) != expected_rows:
+        return False, f"tsv has {len(body)} rows, dump has {expected_rows}"
+    kinds = {"w": "word", "m": "multiword", "e": "empty"}
+    reference_rows = [
+        line.split(" ", 5) for line in reference_lines if line[:2] in ("w ", "m ", "e ")
+    ]
+    for index, line in enumerate(body):
+        fields = line.split("\t")
+        if len(fields) != len(TSV_HEADER):
+            return False, f"tsv row {index + 1} has {len(fields)} columns"
+        if index >= len(reference_rows):
+            continue
+        kind, rid, form, upos, head, deprel = reference_rows[index]
+        if (
+            fields[2] != kinds.get(kind, kind)
+            or fields[3] != rid
+            or fields[4] != form
+            or fields[6] != upos
+            or fields[9] != head
+            or fields[10] != deprel
+        ):
+            return False, f"tsv row {index + 1} disagrees with the dump"
+    return True, ""
+
+
 def compare(path: Path) -> dict:
     text = path.read_text(encoding="utf-8")
     reference = reference_dump(text)
@@ -184,6 +239,10 @@ def compare(path: Path) -> dict:
     if not json_ok:
         first.append(json_problem)
 
+    tsv_ok, tsv_problem = check_tsv(path, theirs)
+    if not tsv_ok:
+        first.append(tsv_problem)
+
     ok = (
         mismatches == 0
         and errors == 0
@@ -191,6 +250,7 @@ def compare(path: Path) -> dict:
         and uas == 100.0
         and las == 100.0
         and json_ok
+        and tsv_ok
     )
     return {
         "file": path.name,
@@ -271,12 +331,13 @@ S <词数> <多词 token> <空节点> <注释行数>
 <w|m|e> <ID> <FORM> <UPOS> <HEAD> <DEPREL>
 ```
 
-另外每份文件还检查四件事：
+另外每份文件还检查五件事：
 
 1. `validate` 必须 0 error（官方树库本身合法）；
 2. `roundtrip` 必须无损（序列化后逐字节一致，允许补上结尾空行）；
 3. 自己对自己 `eval` 必须 UAS=LAS=100%，用来证明对齐逻辑没有漏词；
-4. `dump --format json` 必须能被 `json.loads` 解析，且句子数、token 数与行式 dump 完全一致。
+4. `dump --format json` 必须能被 `json.loads` 解析，且句子数、token 数与行式 dump 完全一致；
+5. `dump --format tsv` 必须带 13 列固定表头，行数等于 dump 行数，且每行的 kind/id/form/upos/head/deprel 与 dump 逐行一致。
 
 ## 三、结果
 
