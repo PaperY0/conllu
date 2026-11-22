@@ -14,6 +14,9 @@ fn usage() -> Unit {
     "  conllu dump <file>              stable row dump, for differential testing",
   )
   println(
+    "  conllu docs <file>              document and paragraph structure",
+  )
+  println(
     "  conllu compress <in> <out>      serialize and write back, gzip when <out> ends in .gz",
   )
   println("")
@@ -70,6 +73,33 @@ fn file_size(path : String) -> Int32 {
     _ => fail("cannot read \{path}")
   }
   bytes.length()
+}
+
+///|
+/// Prints the document / paragraph tree implied by `# newdoc` and `# newpar`
+/// lines, plus the sentence counts on each level.
+fn cmd_docs(path : String) -> Unit {
+  let docs = @conllu.documents(load(path))
+  let mut paragraphs = 0
+  let mut i = 0
+  while i < docs.length() {
+    let doc = docs.at(i)
+    paragraphs = paragraphs + doc.paragraph_count()
+    let id = if doc.id().is_empty() { "-" } else { doc.id() }
+    println(
+      "doc \{pad((i + 1).to_string(), 4)} id=\{pad_right(id, 24)} sentences=\{pad(doc.sentence_count().to_string(), 5)} paragraphs=\{doc.paragraph_count()}",
+    )
+    if doc.paragraph_count() > 1 {
+      let mut j = 0
+      for par in doc.paragraphs() {
+        j = j + 1
+        let pid = if par.id().is_empty() { "-" } else { par.id() }
+        println("  par \{j}: id=\{pid} sentences=\{par.sentence_count()}")
+      }
+    }
+    i = i + 1
+  }
+  println("documents=\{docs.length()} paragraphs=\{paragraphs}")
 }
 
 ///|
@@ -447,6 +477,13 @@ fn main {
       } else {
         usage()
         @env.exit(2)
+      }
+    "docs" =>
+      if args.length() != 3 {
+        usage()
+        @env.exit(2)
+      } else {
+        cmd_docs(args.at(2))
       }
     "compress" =>
       if args.length() != 4 {

@@ -167,6 +167,42 @@ test "tree: path upwards and single-rooted check" {
 }
 
 ///|
+test "group: newdoc and newpar split the file" {
+  let text : String = "# newdoc id = d1\n# newpar id = p1\n# sent_id = s1\n1\ta\ta\tNOUN\tNN\t_\t0\troot\t_\t_\n\n" +
+    "# sent_id = s2\n1\tb\tb\tNOUN\tNN\t_\t0\troot\t_\t_\n\n" +
+    "# newpar id = p2\n# sent_id = s3\n1\tc\tc\tNOUN\tNN\t_\t0\troot\t_\t_\n\n" +
+    "# newdoc id = d2\n# sent_id = s4\n1\td\td\tNOUN\tNN\t_\t0\troot\t_\t_\n\n" +
+    "# sent_id = s5\n1\te\te\tNOUN\tNN\t_\t0\troot\t_\t_\n"
+  let docs = @conllu.documents(@conllu.parse(text))
+  assert_eq(docs.length(), 2)
+  assert_eq(docs[0].id(), "d1")
+  assert_eq(docs[0].sentence_count(), 3)
+  assert_eq(docs[0].paragraph_count(), 2)
+  assert_eq(docs[0].paragraphs()[0].id(), "p1")
+  assert_eq(docs[0].paragraphs()[0].sentence_count(), 2)
+  assert_eq(docs[0].paragraphs()[1].id(), "p2")
+  assert_eq(docs[0].paragraphs()[1].sentence_count(), 1)
+  assert_eq(docs[1].id(), "d2")
+  assert_eq(docs[1].paragraph_count(), 1)
+  assert_eq(docs[1].sentence_count(), 2)
+  // The grouping lives in ordinary comments, so writing a document back keeps
+  // the newdoc/newpar lines in place.
+  let rendered = docs[0].to_string()
+  assert_true(rendered.contains("# newdoc id = d1"))
+  assert_true(rendered.contains("# newpar id = p2"))
+}
+
+///|
+test "group: a file without newdoc is one anonymous document" {
+  let docs = @conllu.documents(@conllu.parse(simple))
+  assert_eq(docs.length(), 1)
+  assert_eq(docs[0].id(), "")
+  assert_eq(docs[0].paragraph_count(), 1)
+  assert_eq(docs[0].paragraphs()[0].sentence_count(), 1)
+  assert_eq(docs[0].sentences().length(), 1)
+}
+
+///|
 test "stats: counts rows by kind" {
   let sentences = @conllu.parse(complex)
   let st = @conllu.stats(sentences)

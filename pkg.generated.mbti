@@ -10,6 +10,8 @@ pub fn depth(Sentence, Int32) -> Int32
 
 pub fn descendants(Sentence, Int32) -> Array[Int32]
 
+pub fn documents(Array[Sentence]) -> Array[Document]
+
 pub fn evaluate(Array[Sentence], Array[Sentence]) -> EvalResult
 
 pub fn evaluate_by_label(Array[Sentence], Array[Sentence]) -> Array[LabelScore]
@@ -52,6 +54,17 @@ pub struct Diagnostic {
 }
 pub fn Diagnostic::to_string(Self) -> String
 
+pub struct Document {
+  id : String
+  paragraphs : Array[Paragraph]
+}
+pub fn Document::id(Self) -> String
+pub fn Document::paragraph_count(Self) -> Int32
+pub fn Document::paragraphs(Self) -> Array[Paragraph]
+pub fn Document::sentence_count(Self) -> Int32
+pub fn Document::sentences(Self) -> Array[Sentence]
+pub fn Document::to_string(Self) -> String
+
 pub struct EvalResult {
   mut sentence_pairs : Int32
   mut skipped_sentences : Int32
@@ -74,6 +87,14 @@ pub struct LabelScore {
 pub fn LabelScore::las(Self) -> Double
 pub fn LabelScore::to_string(Self) -> String
 
+pub struct Paragraph {
+  id : String
+  sentences : Array[Sentence]
+}
+pub fn Paragraph::id(Self) -> String
+pub fn Paragraph::sentence_count(Self) -> Int32
+pub fn Paragraph::sentences(Self) -> Array[Sentence]
+
 pub(all) enum RowKind {
   Word
   Multiword
@@ -86,7 +107,12 @@ pub struct Sentence {
   line : Int32
 }
 pub fn Sentence::comment(Self, StringView) -> String?
+pub fn Sentence::comment_value(Self, StringView) -> String?
 pub fn Sentence::comments(Self) -> Array[String]
+pub fn Sentence::has_newdoc(Self) -> Bool
+pub fn Sentence::has_newpar(Self) -> Bool
+pub fn Sentence::newdoc_id(Self) -> String?
+pub fn Sentence::newpar_id(Self) -> String?
 pub fn Sentence::rows(Self) -> Array[Token]
 pub fn Sentence::to_string(Self) -> String
 pub fn Sentence::word(Self, Int32) -> Token?
