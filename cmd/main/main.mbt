@@ -15,9 +15,7 @@ fn usage() -> Unit {
   println(
     "  conllu dump <file>              stable row dump, for differential testing",
   )
-  println(
-    "  conllu docs <file>              document and paragraph structure",
-  )
+  println("  conllu docs <file>              document and paragraph structure")
   println(
     "  conllu analyze <file>           coverage report: tags, trees, sentence shapes",
   )
@@ -213,9 +211,7 @@ fn cmd_labels(gold_path : String, pred_path : String, csv : Bool) -> Unit {
   if csv {
     println("label,gold,correct,las")
     for s in scores {
-      println(
-        "\{csv_field(s.label)},\{s.gold},\{s.correct},\{pct(s.las())}",
-      )
+      println("\{csv_field(s.label)},\{s.gold},\{s.correct},\{pct(s.las())}")
     }
     return
   }

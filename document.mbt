@@ -145,9 +145,9 @@ pub fn documents(sentences : Array[Sentence]) -> Array[Document] {
     if sentence.has_newdoc() || !open {
       if open {
         if par_rows.length() > 0 {
-          pars.push({ id: par_id, sentences: par_rows })
+          pars.push({ id: par_id, sentences: par_rows, })
         }
-        docs.push({ id: doc_id, paragraphs: pars })
+        docs.push({ id: doc_id, paragraphs: pars, })
       }
       open = true
       doc_id = match sentence.comment_value("newdoc id") {
@@ -162,7 +162,7 @@ pub fn documents(sentences : Array[Sentence]) -> Array[Document] {
     // paragraph of the new document, so the two checks are not exclusive.
     if sentence.has_newpar() {
       if par_rows.length() > 0 {
-        pars.push({ id: par_id, sentences: par_rows })
+        pars.push({ id: par_id, sentences: par_rows, })
         par_rows = []
       }
       par_id = match sentence.comment_value("newpar id") {
@@ -174,9 +174,9 @@ pub fn documents(sentences : Array[Sentence]) -> Array[Document] {
   }
   if open {
     if par_rows.length() > 0 {
-      pars.push({ id: par_id, sentences: par_rows })
+      pars.push({ id: par_id, sentences: par_rows, })
     }
-    docs.push({ id: doc_id, paragraphs: pars })
+    docs.push({ id: doc_id, paragraphs: pars, })
   }
   docs
 }
