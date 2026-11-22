@@ -130,6 +130,48 @@ pub(all) suberror ConlluError {
 }
 
 ///|
+/// One enhanced dependency of a word: the head exactly as written in the DEPS
+/// column (a word index or an empty-node index such as `5.1`) and its relation.
+pub struct EnhancedDep {
+  head : String
+  rel : String
+}
+
+///|
+pub fn EnhancedDep::head(self : EnhancedDep) -> String {
+  self.head
+}
+
+///|
+pub fn EnhancedDep::rel(self : EnhancedDep) -> String {
+  self.rel
+}
+
+///|
+pub fn EnhancedDep::to_string(self : EnhancedDep) -> String {
+  "\{self.head}:\{self.rel}"
+}
+
+///|
+/// Structured form of the DEPS column: `1:nsubj|5.1:ref` becomes two entries,
+/// with the head kept as a string so an empty-node reference is not flattened
+/// into a plain word index. Returns an empty array for `_`.
+pub fn Token::enhanced_deps(self : Token) -> Array[EnhancedDep] {
+  let out : Array[EnhancedDep] = []
+  if self.deps == "_" || self.deps.is_empty() {
+    return out
+  }
+  for item in self.deps.split("|") {
+    match item.split_once(":") {
+      Some((head_raw, rel)) =>
+        out.push({ head: head_raw.to_owned(), rel: rel.to_owned(), })
+      None => ()
+    }
+  }
+  out
+}
+
+///|
 /// The 1-based source line a `ConlluError` points at.
 pub fn ConlluError::line(self : ConlluError) -> Int32 {
   match self {

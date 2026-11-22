@@ -21,6 +21,28 @@ test "parse: word rows and comments" {
 }
 
 ///|
+test "token: enhanced DEPS keep empty-node heads" {
+  let text : String = "1\twho\twho\tPRON\tWP\t_\t4\tnsubj\t4:nsubj|5.1:ref\t_\n"
+  let sentence = @conllu.parse(text)[0]
+  let token = sentence.word(1).unwrap()
+  let deps = token.enhanced_deps()
+  assert_eq(deps.length(), 2)
+  assert_eq(deps[0].head(), "4")
+  assert_eq(deps[0].rel(), "nsubj")
+  // An empty-node head stays `5.1`, it is not folded into the word index 5.
+  assert_eq(deps[1].head(), "5.1")
+  assert_eq(deps[1].rel(), "ref")
+  assert_eq(deps[1].to_string(), "5.1:ref")
+}
+
+///|
+test "token: DEPS `_` has no enhanced dependencies" {
+  let sentence = @conllu.parse("1\ta\ta\tNOUN\tNN\t_\t0\troot\t_\t_\n")[0]
+  let token = sentence.word(1).unwrap()
+  assert_eq(token.enhanced_deps().length(), 0)
+}
+
+///|
 test "parse: multiword rows and empty nodes" {
   let sentences = @conllu.parse(complex)
   assert_eq(sentences.length(), 2)
