@@ -16,6 +16,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import subprocess
@@ -87,6 +88,47 @@ def reference_dump(text: str) -> str:
     return "\n".join(lines) + "\n"
 
 
+def counts_from_dump(lines: list[str]) -> tuple[int, int]:
+    """Sentence and row counts of the line-oriented dump."""
+    sentences = 0
+    rows = 0
+    for line in lines:
+        if line.startswith("S "):
+            sentences += 1
+        elif line[:2] in ("w ", "m ", "e "):
+            rows += 1
+    return sentences, rows
+
+
+def check_json(path: Path, reference_lines: list[str]) -> tuple[bool, str]:
+    """The JSON dump must be valid JSON and agree with the line dump."""
+    code, out, err = run_cli(["dump", str(path), "--format", "json"])
+    if code != 0:
+        return False, f"json dump failed ({code}): {(err or out).strip()[:120]}"
+    try:
+        data = json.loads(out)
+    except json.JSONDecodeError as e:
+        return False, f"json dump is not valid JSON: {e}"
+    sentences = data.get("sentences")
+    if not isinstance(sentences, list):
+        return False, "json dump has no sentences array"
+    expected_sentences, expected_rows = counts_from_dump(reference_lines)
+    rows = 0
+    for sentence in sentences:
+        tokens = sentence.get("tokens")
+        if not isinstance(tokens, list):
+            return False, f"json sentence {sentence.get('line')} has no tokens array"
+        for token in tokens:
+            if token.get("kind") not in ("word", "multiword", "empty"):
+                return False, f"unknown token kind {token.get('kind')!r}"
+            rows += 1
+    if len(sentences) != expected_sentences:
+        return False, f"json has {len(sentences)} sentences, dump has {expected_sentences}"
+    if rows != expected_rows:
+        return False, f"json has {rows} tokens, dump has {expected_rows} rows"
+    return True, ""
+
+
 def compare(path: Path) -> dict:
     text = path.read_text(encoding="utf-8")
     reference = reference_dump(text)
@@ -135,7 +177,21 @@ def compare(path: Path) -> dict:
         if m:
             las = float(m.group(1))
 
-    ok = mismatches == 0 and errors == 0 and rcode == 0 and uas == 100.0 and las == 100.0
+    # The JSON dump is a second serialization of the same parse: it must be
+    # valid JSON and it must agree with the line dump on how many sentences and
+    # rows were seen.
+    json_ok, json_problem = check_json(path, theirs)
+    if not json_ok:
+        first.append(json_problem)
+
+    ok = (
+        mismatches == 0
+        and errors == 0
+        and rcode == 0
+        and uas == 100.0
+        and las == 100.0
+        and json_ok
+    )
     return {
         "file": path.name,
         "ok": ok,
@@ -215,11 +271,12 @@ S <词数> <多词 token> <空节点> <注释行数>
 <w|m|e> <ID> <FORM> <UPOS> <HEAD> <DEPREL>
 ```
 
-另外每份文件还检查三件事：
+另外每份文件还检查四件事：
 
 1. `validate` 必须 0 error（官方树库本身合法）；
 2. `roundtrip` 必须无损（序列化后逐字节一致，允许补上结尾空行）；
-3. 自己对自己 `eval` 必须 UAS=LAS=100%，用来证明对齐逻辑没有漏词。
+3. 自己对自己 `eval` 必须 UAS=LAS=100%，用来证明对齐逻辑没有漏词；
+4. `dump --format json` 必须能被 `json.loads` 解析，且句子数、token 数与行式 dump 完全一致。
 
 ## 三、结果
 

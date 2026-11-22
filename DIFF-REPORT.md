@@ -18,11 +18,12 @@ S <词数> <多词 token> <空节点> <注释行数>
 <w|m|e> <ID> <FORM> <UPOS> <HEAD> <DEPREL>
 ```
 
-另外每份文件还检查三件事：
+另外每份文件还检查四件事：
 
 1. `validate` 必须 0 error（官方树库本身合法）；
 2. `roundtrip` 必须无损（序列化后逐字节一致，允许补上结尾空行）；
-3. 自己对自己 `eval` 必须 UAS=LAS=100%，用来证明对齐逻辑没有漏词。
+3. 自己对自己 `eval` 必须 UAS=LAS=100%，用来证明对齐逻辑没有漏词；
+4. `dump --format json` 必须能被 `json.loads` 解析，且句子数、token 数与行式 dump 完全一致。
 
 ## 三、结果
 
