@@ -1,0 +1,4 @@
+# sent_id = 2
+# text = Dogs sleep
+1	Dogs	dog	NOUN	NNS	Number=Plur	2	nsubj	_	_
+2	sleep	sleep	VERB	VBP	_	0	root	_	_

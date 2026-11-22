@@ -1,0 +1,121 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "PaperY0/conllu"
+
+// Values
+pub fn children(Sentence, Int32) -> Array[Int32]
+
+pub fn count_errors(Array[Diagnostic]) -> Int32
+
+pub fn depth(Sentence, Int32) -> Int32
+
+pub fn descendants(Sentence, Int32) -> Array[Int32]
+
+pub fn evaluate(Array[Sentence], Array[Sentence]) -> EvalResult
+
+pub fn is_ancestor(Sentence, Int32, Int32) -> Bool
+
+pub fn is_projective(Sentence) -> Bool
+
+pub fn max_depth(Sentence) -> Int32
+
+pub fn parse(String) -> Array[Sentence] raise ConlluError
+
+pub fn roots(Sentence) -> Array[Int32]
+
+pub fn stats(Array[Sentence]) -> Stats
+
+pub fn to_string(Array[Sentence]) -> String
+
+pub fn validate(Array[Sentence]) -> Array[Diagnostic]
+
+pub fn validate_sentence(Sentence) -> Array[Diagnostic]
+
+// Errors
+pub(all) suberror ConlluError {
+  ConlluError(Int32, String)
+}
+pub fn ConlluError::line(Self) -> Int32
+pub fn ConlluError::message(Self) -> String
+
+// Types and methods
+pub struct Diagnostic {
+  line : Int32
+  severity : Severity
+  code : String
+  message : String
+}
+pub fn Diagnostic::to_string(Self) -> String
+
+pub struct EvalResult {
+  mut sentence_pairs : Int32
+  mut skipped_sentences : Int32
+  mut gold_tokens : Int32
+  mut aligned_tokens : Int32
+  mut uas_correct : Int32
+  mut las_correct : Int32
+}
+pub fn EvalResult::las(Self) -> Double
+pub fn EvalResult::to_string(Self) -> String
+pub fn EvalResult::uas(Self) -> Double
+
+pub(all) enum RowKind {
+  Word
+  Multiword
+  Empty
+}
+
+pub struct Sentence {
+  comments : Array[String]
+  rows : Array[Token]
+  line : Int32
+}
+pub fn Sentence::comment(Self, StringView) -> String?
+pub fn Sentence::comments(Self) -> Array[String]
+pub fn Sentence::rows(Self) -> Array[Token]
+pub fn Sentence::to_string(Self) -> String
+pub fn Sentence::word(Self, Int32) -> Token?
+pub fn Sentence::word_count(Self) -> Int32
+pub fn Sentence::words(Self) -> Array[Token]
+
+pub(all) enum Severity {
+  Error
+  Warning
+}
+
+pub struct Stats {
+  mut sentences : Int32
+  mut words : Int32
+  mut multiwords : Int32
+  mut empty_nodes : Int32
+  mut comments : Int32
+  mut max_length : Int32
+  treebanks : Array[String]
+}
+pub fn Stats::average_length(Self) -> Double
+pub fn Stats::to_string(Self) -> String
+
+pub struct Token {
+  id_raw : String
+  form : String
+  lemma : String
+  upos : String
+  xpos : String
+  feats : String
+  head_raw : String
+  deprel : String
+  deps : String
+  misc : String
+  kind : RowKind
+  start : Int32
+  end : Int32
+  line : Int32
+}
+pub fn Token::head(Self) -> Int32?
+pub fn Token::is_empty_node(Self) -> Bool
+pub fn Token::is_multiword(Self) -> Bool
+pub fn Token::is_word(Self) -> Bool
+pub fn Token::to_line(Self) -> String
+
+// Type aliases
+
+// Traits
