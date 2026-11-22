@@ -12,8 +12,17 @@ export PATH="$HOME/.moon/bin:$PATH"   # toolchain is not on PATH by default
 moon check                            # exits 0 even with type errors — read the output
 moon test                             # also type-checks the ```mbt check``` blocks in README.mbt.md
 moon run --target wasm cmd/main -- stats examples/sample.conllu
+moon run --target wasm cmd/main -- analyze data/ud/en_ewt-ud-dev.conllu
+moon run --target wasm cmd/main -- compress examples/sample.conllu /tmp/sample.conllu.gz
 moon info && moon fmt                 # run last; commit the .mbti diff
 ```
+
+Modules: `conllu.mbt` (model, parse, serialize), `validate.mbt` (spec checks and
+the tag inventories), `tree.mbt` (tree queries), `metrics.mbt` (UAS/LAS, per-label
+scores, stats), `document.mbt` (`# newdoc`/`# newpar` grouping), `coverage.mbt`
+(corpus coverage report). `coverage.mbt` reads `upos_tags` / `deprel_tags` /
+`base_deprel` from `validate.mbt` — same package, no `pub` needed, but moving
+those inventories means updating both call sites.
 
 The default target is wasm and `moonbitlang/x/fs` works there, so the CLI reads
 local files without a native build.
