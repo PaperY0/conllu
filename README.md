@@ -8,6 +8,46 @@ MoonBit 里的 **CoNLL-U / Universal Dependencies** 工具链：无损解析与�
 
 CoNLL-U 是 UD 树库（Universal Dependencies 项目，200+ 语言树库）的唯一交换格式：每句 10 列制表符分隔，句子之间空行分隔，`#` 开头是注释，ID 可以是 `12`（普通词）、`5-6`（多词 token）、`5.1`（空节点）。生态里做分词、词性的包已经不少，但**句法层**（HEAD/DEPREL 树、投射性、UAS/LAS）此前是空白，这个包补的就是这一层。
 
+[English README](README.en.md)
+
+## 架构
+
+一条主干：文本解析成 `Array[Sentence]` 之后，所有分析都是纯函数，CLI 只是这些函数的一层壳。
+
+```
+ .conllu / .conllu.gz
+        |
+        v
+   parse(text)  ── 词法错误抛 ConlluError(line, message)
+        |
+        v
+ Array[Sentence]                     Token = 原始 10 列 + RowKind + 行号
+        |
+        +-- validate() --------------> Array[Diagnostic]（17 UPOS / 37 DEPREL / 树形）
+        +-- validate_documents() ----> 跨句 id 唯一性（sent_id / newdoc / newpar）
+        +-- tree.mbt ----------------> children / descendants / depth / path /
+        |                              is_projective / roots / is_single_rooted
+        +-- documents() -------------> Document → Paragraph → Sentence
+        +-- stats() -----------------> Stats（句数 / 词数 / 多词 / 空节点 / 树库）
+        +-- coverage() --------------> Coverage（标签命中 / 投射性 / 树深 / 长句）
+        |       merge_coverage() 合并多文件，TOTAL 行不是"平均的平均"
+        |
+        +-- evaluate(gold, pred) ----> EvalResult（UAS / UUAS / LAS）
+        +-- evaluate_by_label() -----> 按关系拆开的 LAS
+        +-- evaluate_by_document() --> 按文档拆分的 UAS / LAS
+        |
+        v
+  to_string() / to_json()  序列化回 CoNLL-U 文本或 JSON（同一套数据，两种出口）
+        |
+        v
+   cmd/main（CLI）
+   stats / validate / eval / labels / docs / analyze / dump / roundtrip / compress
+   输出：对齐表格 | JSON | TSV | CSV | .conllu.gz（写回后读回自检）
+
+ 测试三层：conllu_test.mbt（37 用例）→ tools/golden_test.py（CLI stdout 钉死）
+          → tools/diff_test.py（与 Python conllu 在 6 个 UD 切分上逐字段对拍）
+```
+
 ## 特性
 
 - **无损**：原始 10 列全部保留在 `Token` 里，`to_string` 能逐字节还原（含多词 token、空节点、注释），不认识的列不会被"顺手规范化"。
@@ -371,7 +411,19 @@ golden 集跟着 `moon test` 一起进 CI：`integration` job 在差分对拍后
 
 ## 端到端
 
-一份样例（`examples/sample.conllu`，随仓库提供）把全部子命令走一遍，输出都是真实跑出来的：
+一条命令把全流程跑给你看（首次运行会自动下载 UD 测试语料，之后九步全过才退出 0）：
+
+```bash
+python3 examples/demo.py
+# 1/9 stats → 2/9 validate --documents → 3/9 docs → 4/9 analyze（两切分 + TOTAL）
+# 5/9 eval → 6/9 labels --format csv → 7/9 dump --format tsv → 8/9 roundtrip
+# 9/9 compress（写回后读回自检）
+# demo finished: all nine steps exited 0
+```
+
+这条 demo 也挂在 CI 的 `integration` job 里，所以"文档里写的流程"和"实际能跑的流程"不会脱节。
+
+下面是一份样例（`examples/sample.conllu`，随仓库提供）把全部子命令走一遍，输出都是真实跑出来的：
 
 ```bash
 moon run cmd/main -- stats      examples/sample.conllu
