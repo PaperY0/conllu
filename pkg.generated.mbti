@@ -80,6 +80,7 @@ pub struct Coverage {
 pub fn Coverage::full_deprel(Self) -> Bool
 pub fn Coverage::full_upos(Self) -> Bool
 pub fn Coverage::projectivity(Self) -> Double
+pub fn Coverage::to_json(Self) -> String
 pub fn Coverage::to_string(Self) -> String
 
 pub struct Diagnostic {
@@ -189,6 +190,7 @@ pub struct Stats {
   treebanks : Array[String]
 }
 pub fn Stats::average_length(Self) -> Double
+pub fn Stats::to_json(Self) -> String
 pub fn Stats::to_string(Self) -> String
 
 pub struct Token {

@@ -172,6 +172,79 @@ pub fn Token::enhanced_deps(self : Token) -> Array[EnhancedDep] {
 }
 
 ///|
+/// Code point at `index`, or `-1` past the end.
+fn char_code(s : String, index : Int32) -> Int32 {
+  match s.get_char(index) {
+    Some(c) => c.to_int()
+    None => -1
+  }
+}
+
+///|
+/// Lexicographic comparison by code point. `String::compare` orders by length
+/// first, which makes a list of dependency labels look shuffled, so report
+/// ordering uses this comparator instead.
+fn compare_labels(a : String, b : String) -> Int32 {
+  let shorter = if a.length() < b.length() { a.length() } else { b.length() }
+  let mut i = 0
+  while i < shorter {
+    let ca = char_code(a, i)
+    let cb = char_code(b, i)
+    if ca != cb {
+      return ca - cb
+    }
+    i = i + 1
+  }
+  a.length() - b.length()
+}
+
+///|
+/// Replaces every occurrence of `from` with `to` (non-overlapping).
+fn replace_all(value : String, from : String, to : String) -> String {
+  let parts = value.split(from).to_array()
+  let mut out = ""
+  let mut i = 0
+  while i < parts.length() {
+    if i > 0 {
+      out = out + to
+    }
+    out = out + parts.at(i).to_owned()
+    i = i + 1
+  }
+  out
+}
+
+///|
+/// Escapes the characters that can appear in CoNLL-U fields and break JSON.
+fn json_escape(value : String) -> String {
+  let mut s = replace_all(value, "\\", "\\\\")
+  s = replace_all(s, "\"", "\\\"")
+  s = replace_all(s, "\n", "\\n")
+  s = replace_all(s, "\r", "\\r")
+  s = replace_all(s, "\t", "\\t")
+  s
+}
+
+///|
+fn json_str(value : String) -> String {
+  "\"" + json_escape(value) + "\""
+}
+
+///|
+fn json_str_array(items : Array[String]) -> String {
+  let mut out = "["
+  let mut i = 0
+  while i < items.length() {
+    if i > 0 {
+      out = out + ","
+    }
+    out = out + json_str(items.at(i))
+    i = i + 1
+  }
+  out + "]"
+}
+
+///|
 /// The 1-based source line a `ConlluError` points at.
 pub fn ConlluError::line(self : ConlluError) -> Int32 {
   match self {

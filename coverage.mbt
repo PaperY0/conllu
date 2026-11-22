@@ -162,10 +162,10 @@ pub fn coverage(sentences : Array[Sentence]) -> Coverage {
     depth_sum.to_double() / cov.words.to_double()
   }
   cov.depth_total = depth_sum
-  cov.upos_used.sort_by(String::compare)
-  cov.deprel_used.sort_by(String::compare)
-  cov.unknown_upos.sort_by(String::compare)
-  cov.unknown_deprel.sort_by(String::compare)
+  cov.upos_used.sort_by(compare_labels)
+  cov.deprel_used.sort_by(compare_labels)
+  cov.unknown_upos.sort_by(compare_labels)
+  cov.unknown_deprel.sort_by(compare_labels)
   cov.upos_missing = missing_from(upos_tags, cov.upos_used)
   cov.deprel_missing = missing_from(deprel_tags, cov.deprel_used)
   let docs = documents(sentences)
@@ -246,10 +246,10 @@ pub fn merge_coverage(items : Array[Coverage]) -> Coverage {
     merge_into(merged.unknown_upos, item.unknown_upos)
     merge_into(merged.unknown_deprel, item.unknown_deprel)
   }
-  merged.upos_used.sort_by(String::compare)
-  merged.deprel_used.sort_by(String::compare)
-  merged.unknown_upos.sort_by(String::compare)
-  merged.unknown_deprel.sort_by(String::compare)
+  merged.upos_used.sort_by(compare_labels)
+  merged.deprel_used.sort_by(compare_labels)
+  merged.unknown_upos.sort_by(compare_labels)
+  merged.unknown_deprel.sort_by(compare_labels)
   merged.upos_missing = missing_from(upos_tags, merged.upos_used)
   merged.deprel_missing = missing_from(deprel_tags, merged.deprel_used)
   merged.avg_depth = if merged.words == 0 {
@@ -287,6 +287,57 @@ pub fn Coverage::full_deprel(self : Coverage) -> Bool {
 fn percent(value : Double) -> String {
   let rounded = (value * 100.0).to_int().to_double() / 100.0
   rounded.to_string()
+}
+
+///|
+/// The same report as one JSON object, for callers that build dashboards or
+/// diff two corpora programmatically. Label arrays are plain string arrays.
+pub fn Coverage::to_json(self : Coverage) -> String {
+  let sb = StringBuilder::StringBuilder()
+  sb.write_string("{\"sentences\":")
+  sb.write_string(self.sentences.to_string())
+  sb.write_string(",\"words\":")
+  sb.write_string(self.words.to_string())
+  sb.write_string(",\"documents\":")
+  sb.write_string(self.documents.to_string())
+  sb.write_string(",\"paragraphs\":")
+  sb.write_string(self.paragraphs.to_string())
+  sb.write_string(",\"upos_used\":")
+  sb.write_string(json_str_array(self.upos_used))
+  sb.write_string(",\"upos_missing\":")
+  sb.write_string(json_str_array(self.upos_missing))
+  sb.write_string(",\"deprel_used\":")
+  sb.write_string(json_str_array(self.deprel_used))
+  sb.write_string(",\"deprel_missing\":")
+  sb.write_string(json_str_array(self.deprel_missing))
+  sb.write_string(",\"unknown_upos\":")
+  sb.write_string(json_str_array(self.unknown_upos))
+  sb.write_string(",\"unknown_deprel\":")
+  sb.write_string(json_str_array(self.unknown_deprel))
+  sb.write_string(",\"untagged\":")
+  sb.write_string(self.untagged.to_string())
+  sb.write_string(",\"projective\":")
+  sb.write_string(self.projective.to_string())
+  sb.write_string(",\"non_projective\":")
+  sb.write_string(self.non_projective.to_string())
+  sb.write_string(",\"projectivity\":")
+  sb.write_string(percent(self.projectivity()))
+  sb.write_string(",\"single_rooted\":")
+  sb.write_string(self.single_rooted.to_string())
+  sb.write_string(",\"multi_rooted\":")
+  sb.write_string(self.multi_rooted.to_string())
+  sb.write_string(",\"max_depth\":")
+  sb.write_string(self.max_depth.to_string())
+  sb.write_string(",\"avg_depth\":")
+  sb.write_string(percent(self.avg_depth))
+  sb.write_string(",\"long_sentences\":")
+  sb.write_string(self.long_sentences.to_string())
+  sb.write_string(",\"empty_nodes\":")
+  sb.write_string(self.empty_nodes.to_string())
+  sb.write_string(",\"multiword_tokens\":")
+  sb.write_string(self.multiword_tokens.to_string())
+  sb.write_string("}")
+  sb.to_string()
 }
 
 ///|

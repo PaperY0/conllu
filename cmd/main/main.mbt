@@ -99,32 +99,46 @@ fn basename(path : String) -> String {
 ///|
 /// Coverage report. One file prints the full report; several files print one
 /// row per file plus a merged TOTAL row, which is how dev and test splits get
-/// compared without running the command twice by hand. Exits non-zero when the
-/// corpus uses tags or relations the UD spec does not define, so the command
-/// doubles as a corpus gate.
-fn cmd_analyze(paths : Array[String]) -> Unit {
-  if paths.length() == 1 {
-    let cov = @conllu.coverage(load(paths.at(0)))
-    println(cov.to_string())
-    if cov.unknown_upos.length() > 0 || cov.unknown_deprel.length() > 0 {
-      @env.exit(1)
-    }
-    return
-  }
+/// compared without running the command twice by hand. `--format json` emits
+/// the same numbers as nested objects instead. Exits non-zero when the corpus
+/// uses tags or relations the UD spec does not define, so the command doubles
+/// as a corpus gate.
+fn cmd_analyze(paths : Array[String], json : Bool) -> Unit {
   let coverages : Array[@conllu.Coverage] = []
   for path in paths {
     coverages.push(@conllu.coverage(load(path)))
   }
-  println(
-    "file                            sentences   words  upos deprel unknown projective  depth",
-  )
-  let mut i = 0
-  while i < paths.length() {
-    print_coverage_row(basename(paths.at(i)), coverages.at(i))
-    i = i + 1
-  }
   let merged = @conllu.merge_coverage(coverages)
-  print_coverage_row("TOTAL", merged)
+  if json {
+    let mut out = "{\"files\":["
+    let mut i = 0
+    while i < paths.length() {
+      if i > 0 {
+        out = out + ","
+      }
+      out = out +
+        "{\"file\":" +
+        json_str(basename(paths.at(i))) +
+        ",\"coverage\":" +
+        coverages.at(i).to_json() +
+        "}"
+      i = i + 1
+    }
+    out = out + "],\"total\":" + merged.to_json() + "}"
+    println(out)
+  } else if paths.length() == 1 {
+    println(merged.to_string())
+  } else {
+    println(
+      "file                            sentences   words  upos deprel unknown projective  depth",
+    )
+    let mut i = 0
+    while i < paths.length() {
+      print_coverage_row(basename(paths.at(i)), coverages.at(i))
+      i = i + 1
+    }
+    print_coverage_row("TOTAL", merged)
+  }
   if merged.unknown_upos.length() > 0 || merged.unknown_deprel.length() > 0 {
     @env.exit(1)
   }
@@ -202,13 +216,25 @@ fn load(path : String) -> Array[@conllu.Sentence] {
 }
 
 ///|
-fn cmd_stats(path : String) -> Unit {
+fn cmd_stats(path : String, json : Bool) -> Unit {
   let sentences = load(path)
   let diagnostics = @conllu.validate(sentences)
   let errors = @conllu.count_errors(diagnostics)
   let st = @conllu.stats(sentences)
-  println(st.to_string())
-  println("errors=\{errors}")
+  if json {
+    println(
+      "{\"file\":" +
+      json_str(path) +
+      ",\"stats\":" +
+      st.to_json() +
+      ",\"errors\":" +
+      errors.to_string() +
+      "}",
+    )
+  } else {
+    println(st.to_string())
+    println("errors=\{errors}")
+  }
   if errors > 0 {
     @env.exit(1)
   }
@@ -576,11 +602,21 @@ fn main {
   let command = args.at(1)
   match command {
     "stats" =>
-      if args.length() != 3 {
+      if args.length() == 3 {
+        cmd_stats(args.at(2), false)
+      } else if args.length() == 5 && args.at(3) == "--format" {
+        if args.at(4) == "json" {
+          cmd_stats(args.at(2), true)
+        } else if args.at(4) == "text" {
+          cmd_stats(args.at(2), false)
+        } else {
+          fail("unknown stats format \{args.at(4)} (expected text or json)")
+        }
+      } else if args.length() == 4 && args.at(3) == "--format=json" {
+        cmd_stats(args.at(2), true)
+      } else {
         usage()
         @env.exit(2)
-      } else {
-        cmd_stats(args.at(2))
       }
     "validate" =>
       if args.length() == 3 {
@@ -644,12 +680,31 @@ fn main {
         @env.exit(2)
       } else {
         let paths : Array[String] = []
+        let mut json = false
         let mut i = 2
         while i < args.length() {
-          paths.push(args.at(i))
-          i = i + 1
+          let arg = args.at(i)
+          if arg == "--format" && i + 1 < args.length() {
+            let format = args.at(i + 1)
+            if format == "json" {
+              json = true
+            } else if format != "text" {
+              fail("unknown analyze format \{format} (expected text or json)")
+            }
+            i = i + 2
+          } else if arg == "--format=json" {
+            json = true
+            i = i + 1
+          } else {
+            paths.push(arg)
+            i = i + 1
+          }
         }
-        cmd_analyze(paths)
+        if paths.length() == 0 {
+          usage()
+          @env.exit(2)
+        }
+        cmd_analyze(paths, json)
       }
     "docs" =>
       if args.length() != 3 {

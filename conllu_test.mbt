@@ -302,6 +302,10 @@ test "coverage: merging files unions the labels and weights the depth" {
   assert_eq(merged.words, 9)
   // 5 tags in `simple` plus 4 in `complex`, with VERB in both: 8 distinct.
   assert_eq(merged.upos_used.length(), 8)
+  // Report order is by code point, not by length: a one-letter tag like `X`
+  // must not jump to the front just because it is short.
+  assert_eq(merged.upos_used[0], "AUX")
+  assert_eq(merged.upos_used[merged.upos_used.length() - 1], "VERB")
   assert_eq(merged.unknown_upos.length(), 0)
   assert_eq(merged.multiword_tokens, 1)
   assert_eq(merged.empty_nodes, 1)

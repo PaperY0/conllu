@@ -222,7 +222,7 @@ pub fn evaluate_by_label(
     if ea != eb {
       eb - ea
     } else {
-      String::compare(a.label, b.label)
+      compare_labels(a.label, b.label)
     }
   })
   out
@@ -301,7 +301,7 @@ pub fn evaluate_by_document(
     if la != lb {
       (la - lb).to_int()
     } else {
-      String::compare(a.id, b.id)
+      compare_labels(a.id, b.id)
     }
   })
   out
@@ -384,4 +384,30 @@ pub fn Stats::average_length(self : Stats) -> Double {
 pub fn Stats::to_string(self : Stats) -> String {
   let avg = (self.average_length() * 100.0).to_int().to_double() / 100.0
   "sentences=\{self.sentences} words=\{self.words} multiword=\{self.multiwords} empty=\{self.empty_nodes} comments=\{self.comments} max_len=\{self.max_length} avg_len=\{avg} docs=\{self.treebanks.length()}"
+}
+
+///|
+/// Same numbers as `Stats::to_string`, as one JSON object, so a wrapper in
+/// another language does not have to parse the sentence-level summary.
+pub fn Stats::to_json(self : Stats) -> String {
+  let avg = (self.average_length() * 100.0).to_int().to_double() / 100.0
+  let sb = StringBuilder::StringBuilder()
+  sb.write_string("{\"sentences\":")
+  sb.write_string(self.sentences.to_string())
+  sb.write_string(",\"words\":")
+  sb.write_string(self.words.to_string())
+  sb.write_string(",\"multiword\":")
+  sb.write_string(self.multiwords.to_string())
+  sb.write_string(",\"empty_nodes\":")
+  sb.write_string(self.empty_nodes.to_string())
+  sb.write_string(",\"comments\":")
+  sb.write_string(self.comments.to_string())
+  sb.write_string(",\"max_length\":")
+  sb.write_string(self.max_length.to_string())
+  sb.write_string(",\"avg_length\":")
+  sb.write_string(avg.to_string())
+  sb.write_string(",\"treebanks\":")
+  sb.write_string(json_str_array(self.treebanks))
+  sb.write_string("}")
+  sb.to_string()
 }
