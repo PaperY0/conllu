@@ -2,6 +2,12 @@ import {
   "PaperY0/conllu",
   "moonbitlang/x/fs",
   "moonbitlang/core/env",
+  "moonbitlang/core/compress/gzip",
+  "moonbitlang/core/encoding/utf8",
 }
+
+options(
+  "allow-experimental-packages": [ "moonbitlang/core/compress/gzip" ],
+)
 
 pkgtype(kind: "executable")

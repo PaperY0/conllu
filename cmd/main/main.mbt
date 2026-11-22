@@ -13,6 +13,8 @@ fn usage() -> Unit {
   println(
     "  conllu dump <file>              stable row dump, for differential testing",
   )
+  println("")
+  println("<file> may be plain text or gzipped (`.conllu.gz`).")
 }
 
 ///|
@@ -22,9 +24,24 @@ fn[T] fail(message : String) -> T {
 }
 
 ///|
+/// Reads a treebank as UTF-8 text. Files ending in `.gz` are inflated with the
+/// core gzip implementation, so a compressed treebank works without unzipping
+/// it first.
 fn read(path : String) -> String {
-  @fs.read_file_to_string(path) catch {
-    _ => fail("cannot read \{path}")
+  if path.has_suffix(".gz") {
+    let bytes = @fs.read_file_to_bytes(path) catch {
+      _ => fail("cannot read \{path}")
+    }
+    let plain = @gzip.decompress(bytes) catch {
+      _ => fail("cannot decompress \{path}")
+    }
+    @utf8.decode(plain) catch {
+      _ => fail("\{path}: not valid UTF-8")
+    }
+  } else {
+    @fs.read_file_to_string(path) catch {
+      _ => fail("cannot read \{path}")
+    }
   }
 }
 

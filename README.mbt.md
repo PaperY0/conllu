@@ -87,12 +87,13 @@ test {
 
 ## 命令行
 
-包自带 `cmd/main`，五个子命令都直接吃文件：
+包自带 `cmd/main`，五个子命令都直接吃文件，纯文本和 `.conllu.gz` 都支持：
 
 ```bash
 moon run cmd/main -- stats      treebank.conllu   # 句数/词数/多词/空节点/最长句/树库
 moon run cmd/main -- validate   treebank.conllu   # 诊断列表，有 error 时退出码 1
 moon run cmd/main -- eval       gold.conllu pred.conllu
+moon run cmd/main -- labels     gold.conllu pred.conllu   # 按关系拆开的 LAS
 moon run cmd/main -- dump       treebank.conllu   # 归一化 dump，用于对拍
 moon run cmd/main -- dump       treebank.conllu --format json
 moon run cmd/main -- roundtrip  treebank.conllu   # 解析再序列化，校验无损
