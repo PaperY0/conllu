@@ -64,6 +64,8 @@ jobs:
         run: python3 tools/diff_test.py
       - name: Golden CLI outputs
         run: python3 tools/golden_test.py
+      - name: End-to-end demo
+        run: python3 examples/demo.py
       - name: Upload report
         if: always()
         uses: actions/upload-artifact@v4
