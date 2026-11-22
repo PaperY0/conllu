@@ -29,6 +29,11 @@ SOURCES = [
         "zh_gsd",
         ["dev", "test"],
     ),
+    (
+        "UD_Japanese-GSD",
+        "ja_gsd",
+        ["dev", "test"],
+    ),
 ]
 
 

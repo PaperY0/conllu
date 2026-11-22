@@ -16,7 +16,7 @@ CoNLL-U 是 UD 树库（Universal Dependencies 项目，200+ 语言树库）的�
 - **评测**：`evaluate(gold, pred)` 给出 UAS / LAS（百分制），按 1-based 词序对齐，长度不等的句子计入 `skipped_sentences` 而不是静默丢掉。
 - **树查询**：`children` / `descendants` / `depth` / `is_ancestor` / `is_projective` / `roots`。
 - **统计**：句数、词数、多词 token、空节点、注释、最长句、平均句长、涉及的树库。
-- **对拍过**：与 Python `conllu` 参考解析器在 UD_English-EWT 与 UD_Chinese-GSD 的 dev/test 四个切分上逐字段零差异，见 [DIFF-REPORT.md](DIFF-REPORT.md)。
+- **对拍过**：与 Python `conllu` 参考解析器在 UD_English-EWT、UD_Chinese-GSD、UD_Japanese-GSD 的 dev/test 六个切分（6,128 句、107,091 行）上逐字段零差异，见 [DIFF-REPORT.md](DIFF-REPORT.md)。
 
 ## 安装
 
@@ -126,6 +126,8 @@ python3 tools/diff_test.py --report
 | en_ewt-ud-test | 2077 | 27528 | 0 |
 | zh_gsd-ud-dev | 500 | 13166 | 0 |
 | zh_gsd-ud-test | 500 | 12511 | 0 |
+| ja_gsd-ud-dev | 507 | 12795 | 0 |
+| ja_gsd-ud-test | 543 | 13578 | 0 |
 
 对拍过程里发现并修掉的两个真实 bug：`8.1:obj` 这类指向空节点的 DEPS 被当成数字 `81`（越界误报），以及增强 DEPS 里合法的 `ref` 关系被判成未知标签。
 
