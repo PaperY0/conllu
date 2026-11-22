@@ -12,6 +12,8 @@ pub fn depth(Sentence, Int32) -> Int32
 
 pub fn descendants(Sentence, Int32) -> Array[Int32]
 
+pub fn diagnostics_to_json(Array[Diagnostic]) -> String
+
 pub fn documents(Array[Sentence]) -> Array[Document]
 
 pub fn evaluate(Array[Sentence], Array[Sentence]) -> EvalResult
@@ -37,6 +39,8 @@ pub fn path(Sentence, Int32, Int32) -> Array[Int32]?
 pub fn roots(Sentence) -> Array[Int32]
 
 pub fn stats(Array[Sentence]) -> Stats
+
+pub fn to_json(Array[Sentence], source? : String) -> String
 
 pub fn to_string(Array[Sentence]) -> String
 
@@ -89,6 +93,7 @@ pub struct Diagnostic {
   code : String
   message : String
 }
+pub fn Diagnostic::to_json(Self) -> String
 pub fn Diagnostic::to_string(Self) -> String
 
 pub struct Document {
@@ -170,6 +175,7 @@ pub fn Sentence::has_newpar(Self) -> Bool
 pub fn Sentence::newdoc_id(Self) -> String?
 pub fn Sentence::newpar_id(Self) -> String?
 pub fn Sentence::rows(Self) -> Array[Token]
+pub fn Sentence::to_json(Self) -> String
 pub fn Sentence::to_string(Self) -> String
 pub fn Sentence::word(Self, Int32) -> Token?
 pub fn Sentence::word_count(Self) -> Int32

@@ -245,6 +245,114 @@ fn json_str_array(items : Array[String]) -> String {
 }
 
 ///|
+/// One row as a JSON object. The raw column values are kept, so a wrapper reads
+/// the same strings it would read from the file.
+fn token_json(row : Token) -> String {
+  let kind = match row.kind {
+    Word => "word"
+    Multiword => "multiword"
+    Empty => "empty"
+  }
+  "{\"kind\":" +
+  json_str(kind) +
+  ",\"id\":" +
+  json_str(row.id_raw) +
+  ",\"form\":" +
+  json_str(row.form) +
+  ",\"lemma\":" +
+  json_str(row.lemma) +
+  ",\"upos\":" +
+  json_str(row.upos) +
+  ",\"xpos\":" +
+  json_str(row.xpos) +
+  ",\"feats\":" +
+  json_str(row.feats) +
+  ",\"head\":" +
+  json_str(row.head_raw) +
+  ",\"deprel\":" +
+  json_str(row.deprel) +
+  ",\"deps\":" +
+  json_str(row.deps) +
+  ",\"misc\":" +
+  json_str(row.misc) +
+  ",\"line\":" +
+  row.line.to_string() +
+  "}"
+}
+
+///|
+/// One sentence as a JSON object: line, row counts, comments and the tokens.
+pub fn Sentence::to_json(self : Sentence) -> String {
+  let mut multi = 0
+  let mut empty = 0
+  for row in self.rows {
+    if row.is_multiword() {
+      multi = multi + 1
+    }
+    if row.is_empty_node() {
+      empty = empty + 1
+    }
+  }
+  let sb = StringBuilder::StringBuilder()
+  sb.write_string("{\"line\":")
+  sb.write_string(self.line.to_string())
+  sb.write_string(",\"words\":")
+  sb.write_string(self.word_count().to_string())
+  sb.write_string(",\"multiword\":")
+  sb.write_string(multi.to_string())
+  sb.write_string(",\"empty\":")
+  sb.write_string(empty.to_string())
+  sb.write_string(",\"comments\":[")
+  let mut c = 0
+  for comment in self.comments {
+    if c > 0 {
+      sb.write_string(",")
+    }
+    sb.write_string(json_str(comment))
+    c = c + 1
+  }
+  sb.write_string("],\"tokens\":[")
+  let mut t = 0
+  for row in self.rows {
+    if t > 0 {
+      sb.write_string(",")
+    }
+    sb.write_string(token_json(row))
+    t = t + 1
+  }
+  sb.write_string("]}")
+  sb.to_string()
+}
+
+///|
+/// Whole document as one JSON object: `{"source": ..., "sentences": [...]}`.
+/// `source` is omitted when no path is passed. Used by `dump --format json`
+/// and by wrappers that would otherwise re-split the line-oriented dump.
+pub fn to_json(sentences : Array[Sentence], source? : String) -> String {
+  let sb = StringBuilder::StringBuilder()
+  sb.write_string("{")
+  match source {
+    Some(path) => {
+      sb.write_string("\"source\":")
+      sb.write_string(json_str(path))
+      sb.write_string(",")
+    }
+    None => ()
+  }
+  sb.write_string("\"sentences\":[")
+  let mut i = 0
+  for sentence in sentences {
+    if i > 0 {
+      sb.write_string(",")
+    }
+    sb.write_string(sentence.to_json())
+    i = i + 1
+  }
+  sb.write_string("]}")
+  sb.to_string()
+}
+
+///|
 /// The 1-based source line a `ConlluError` points at.
 pub fn ConlluError::line(self : ConlluError) -> Int32 {
   match self {

@@ -24,6 +24,40 @@ pub fn Diagnostic::to_string(self : Diagnostic) -> String {
 }
 
 ///|
+/// One diagnostic as a JSON object, for CI steps that need to filter by code
+/// instead of regexing `line 12: error [ROOT_COUNT] ...`.
+pub fn Diagnostic::to_json(self : Diagnostic) -> String {
+  let level = match self.severity {
+    Error => "error"
+    Warning => "warning"
+  }
+  "{\"line\":" +
+  self.line.to_string() +
+  ",\"severity\":" +
+  json_str(level) +
+  ",\"code\":" +
+  json_str(self.code) +
+  ",\"message\":" +
+  json_str(self.message) +
+  "}"
+}
+
+///|
+/// A diagnostic list as a JSON array.
+pub fn diagnostics_to_json(diagnostics : Array[Diagnostic]) -> String {
+  let mut out = "["
+  let mut i = 0
+  while i < diagnostics.length() {
+    if i > 0 {
+      out = out + ","
+    }
+    out = out + diagnostics.at(i).to_json()
+    i = i + 1
+  }
+  out + "]"
+}
+
+///|
 /// The 17 universal part-of-speech tags of UD v2.
 let upos_tags : Array[String] = [
   "ADJ", "ADP", "ADV", "AUX", "CCONJ", "DET", "INTJ", "NOUN", "NUM", "PART", "PRON",

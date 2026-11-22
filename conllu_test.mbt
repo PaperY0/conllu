@@ -370,3 +370,34 @@ test "validate: enhanced DEPS accept ref and empty-node heads" {
   let diagnostics = @conllu.validate(sentences)
   assert_eq(@conllu.count_errors(diagnostics), 0)
 }
+
+///|
+test "json: sentence and document serialization are stable" {
+  let sentences = @conllu.parse(
+    "# text = hi\n1\thi\thi\tINTJ\tUH\t_\t0\troot\t_\t_\n",
+  )
+  assert_eq(
+    sentences[0].to_json(),
+    "{\"line\":1,\"words\":1,\"multiword\":0,\"empty\":0,\"comments\":[\"# text = hi\"],\"tokens\":[{\"kind\":\"word\",\"id\":\"1\",\"form\":\"hi\",\"lemma\":\"hi\",\"upos\":\"INTJ\",\"xpos\":\"UH\",\"feats\":\"_\",\"head\":\"0\",\"deprel\":\"root\",\"deps\":\"_\",\"misc\":\"_\",\"line\":2}]}",
+  )
+  let document = @conllu.to_json(sentences)
+  assert_true(document.has_prefix("{\"sentences\":[{\"line\":1,\"words\":1"))
+  assert_eq(
+    @conllu.to_json(sentences, source="hi.conllu"),
+    "{\"source\":\"hi.conllu\",\"sentences\":[" + sentences[0].to_json() + "]}",
+  )
+}
+
+///|
+test "json: diagnostics serialize as objects with code and severity" {
+  let diagnostics = @conllu.validate(
+    @conllu.parse(
+      "1\ta\ta\tNOUN\tNN\t_\t0\troot\t_\t_\n2\tb\tb\tNOUN\tNN\t_\t0\troot\t_\t_\n",
+    ),
+  )
+  assert_eq(diagnostics.length(), 1)
+  assert_eq(
+    @conllu.diagnostics_to_json(diagnostics),
+    "[{\"line\":1,\"severity\":\"error\",\"code\":\"ROOT_COUNT\",\"message\":\"sentence has 2 roots, exactly one is required\"}]",
+  )
+}
