@@ -6,7 +6,9 @@ fn usage() -> Unit {
   println("  conllu stats <file>              corpus statistics")
   println("  conllu validate <file>          structural validation")
   println("  conllu eval <gold> <pred>       UAS / LAS of a predicted parse")
-  println("  conllu labels <gold> <pred>     per-relation labelled accuracy")
+  println(
+    "  conllu labels <gold> <pred>     per-relation labelled accuracy (--format csv)",
+  )
   println(
     "  conllu roundtrip <file>         parse + serialize, report the diff",
   )
@@ -189,15 +191,38 @@ fn cmd_eval(gold_path : String, pred_path : String) -> Unit {
 }
 
 ///|
-fn cmd_labels(gold_path : String, pred_path : String) -> Unit {
+/// Quotes a CSV field only when it contains a comma or a quote, doubling inner
+/// quotes as RFC 4180 wants. Relation names never need it, but a corpus that
+/// labels something with a comma should not break the table.
+fn csv_field(value : String) -> String {
+  if value.contains(",") || value.contains("\"") {
+    "\"" + replace_all(value, "\"", "\"\"") + "\""
+  } else {
+    value
+  }
+}
+
+///|
+/// Per-relation labelled accuracy as a table or as CSV. The CSV form exists so
+/// the numbers can be pasted into a spreadsheet or diffed between two runs
+/// instead of being read off a terminal.
+fn cmd_labels(gold_path : String, pred_path : String, csv : Bool) -> Unit {
   let gold = load(gold_path)
   let pred = load(pred_path)
   let scores = @conllu.evaluate_by_label(gold, pred)
+  if csv {
+    println("label,gold,correct,las")
+    for s in scores {
+      println(
+        "\{csv_field(s.label)},\{s.gold},\{s.correct},\{pct(s.las())}",
+      )
+    }
+    return
+  }
   println("label                 gold  correct    las")
   for s in scores {
-    let las = (s.las() * 100.0).to_int().to_double() / 100.0
     println(
-      "\{pad_right(s.label, 20)} \{pad(s.gold.to_string(), 5)} \{pad(s.correct.to_string(), 8)} \{las}%",
+      "\{pad_right(s.label, 20)} \{pad(s.gold.to_string(), 5)} \{pad(s.correct.to_string(), 8)} \{pct(s.las())}%",
     )
   }
 }
@@ -469,11 +494,21 @@ fn main {
         cmd_eval(args.at(2), args.at(3))
       }
     "labels" =>
-      if args.length() != 4 {
+      if args.length() == 4 {
+        cmd_labels(args.at(2), args.at(3), false)
+      } else if args.length() == 6 && args.at(4) == "--format" {
+        if args.at(5) == "csv" {
+          cmd_labels(args.at(2), args.at(3), true)
+        } else if args.at(5) == "text" {
+          cmd_labels(args.at(2), args.at(3), false)
+        } else {
+          fail("unknown labels format \{args.at(5)} (expected text or csv)")
+        }
+      } else if args.length() == 5 && args.at(4) == "--format=csv" {
+        cmd_labels(args.at(2), args.at(3), true)
+      } else {
         usage()
         @env.exit(2)
-      } else {
-        cmd_labels(args.at(2), args.at(3))
       }
     "dump" =>
       if args.length() == 3 {
