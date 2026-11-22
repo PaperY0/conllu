@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.5.0 — 2026-11-22
+
+JSON 从"CLI 顺手拼"变成库的一等公民，另外补上 CLI 输出的 golden 回归。
+
+- `Diagnostic::to_json()` / `diagnostics_to_json(diagnostics)`：每条诊断
+  `{"line","severity","code","message"}`；CLI `validate <file> --format json` 输出
+  `{"file","diagnostics":[...],"errors","warnings"}`，可与 `--documents` 叠加，
+  退出码规则不变（有 error 仍为 1）。
+- `Sentence::to_json()` / `to_json(sentences, source?=...)`：整份文档的 JSON 现在由库生成，
+  `dump --format json` 改成调用它，CLI 里重复的 `token_json` 已删除——库与命令行的 JSON
+  只有一份实现，不可能再各改各的。
+- `tests/golden/` + `tools/golden_test.py`：11 个 CLI 调用（`stats`、`validate` 文本/JSON、
+  `dump` 文本/JSON/TSV、`eval`、`docs`、`analyze`、跨句校验、坏文件的 JSON 诊断）的完整
+  stdout 固化成 golden 文件，逐字节比对；`--update` 重新生成。CI `integration` job 在差分
+  对拍后执行，输出格式的任何改动都会失败。
+
 ## 0.4.0 — 2026-11-22
 
 增强依存的结构化访问、跨句校验与 JSON 输出。

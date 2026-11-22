@@ -22,6 +22,7 @@ CoNLL-U 是 UD 树库（Universal Dependencies 项目，200+ 语言树库）的�
 - **按文档评测**：`evaluate_by_document` 按 `# newdoc` 分组算 UAS / LAS，最差的文档排最前；预测漏掉整篇文档时显示为 0 对齐词，不会把分数悄悄摊平。
 - **统计**：句数、词数、多词 token、空节点、注释、最长句、平均句长、涉及的树库；`Stats::to_json()` 与 `Coverage::to_json()` 供别的语言直接取数。
 - **对拍过**：与 Python `conllu` 参考解析器在 UD_English-EWT、UD_Chinese-GSD、UD_Japanese-GSD 的 dev/test 六个切分（6,128 句、107,091 行）上逐字段零差异，见 [DIFF-REPORT.md](DIFF-REPORT.md)。
+- **输出有 golden 兜底**：11 个 CLI 调用的完整 stdout 钉在 `tests/golden/`，CI 每次比对，改格式必现形。
 
 ## 安装
 
@@ -207,6 +208,7 @@ moon run cmd/main -- stats      treebank.conllu   # 句数/词数/多词/空节�
 moon run cmd/main -- stats      treebank.conllu --format json
 moon run cmd/main -- validate   treebank.conllu   # 诊断列表，有 error 时退出码 1
 moon run cmd/main -- validate   treebank.conllu --documents   # 加上跨句 id 检查
+moon run cmd/main -- validate   treebank.conllu --format json   # 每条诊断一个对象，退出码不变
 moon run cmd/main -- eval       gold.conllu pred.conllu
 moon run cmd/main -- eval       gold.conllu pred.conllu --by-document
 moon run cmd/main -- labels     gold.conllu pred.conllu   # 按关系拆开的 LAS
@@ -223,6 +225,12 @@ moon run cmd/main -- compress   treebank.conllu out.conllu.gz   # 规范序列�
 ```
 
 `compress` 会把自己写出的文件再读回来比对，写坏了不会静默产出一个"看着像"的文件。UD_English-EWT dev 实测 1,899,904 → 357,823 字节（18.83%）。
+
+`validate --format json` 输出 `{"file": ..., "diagnostics": [...], "errors": N, "warnings": M}`，每条诊断是 `{"line": 7, "severity": "error", "code": "ROOT_COUNT", "message": "..."}`。CI 里想按 `code` 过滤或统计，不用再正则解析文本行；退出码规则与文本模式一致（有 error 就是 1）。
+
+```bash
+moon run cmd/main -- validate corpus.conllu --format json | jq -r '.diagnostics[].code' | sort | uniq -c
+```
 
 `labels --format csv` 输出 `label,gold,correct,las` 四列，按 RFC 4180 处理引号，可直接喂给表格或 pandas；默认仍是终端对齐表。
 
@@ -266,6 +274,15 @@ python3 tools/diff_test.py --report
 
 对拍过程里发现并修掉的两个真实 bug：`8.1:obj` 这类指向空节点的 DEPS 被当成数字 `81`（越界误报），以及增强 DEPS 里合法的 `ref` 关系被判成未知标签。
 
+**golden 回归**。对拍依赖外部语料，只能证明"数字对"，证明不了"输出长什么样"。`tests/golden/cases.json` 把十一个 CLI 调用（`stats` / `validate` / `dump` 三种格式 / `eval` / `docs` / `analyze` / 跨句校验 / JSON 诊断）连同各自的期望 stdout 一起钉住，列顺序、标签大小写、JSON 键名、`pad` 宽度一改就会被抓出来：
+
+```bash
+python3 tools/golden_test.py            # 比对，11/11 必须全过
+python3 tools/golden_test.py --update   # 有意改动输出后重新生成
+```
+
+golden 集跟着 `moon test` 一起进 CI：`integration` job 在差分对拍后跑一遍，所以"本地测试绿了但 CLI 文本悄悄变了"这种情况不会再漏。
+
 ## API 参考
 
 完整文档注释可用 `moon doc --serve` 在本地预览（默认 `http://127.0.0.1:3000`），发布后也会出现在 mooncakes 的文档页。
@@ -277,6 +294,8 @@ python3 tools/diff_test.py --report
 | `parse(text) -> Array[Sentence] raise ConlluError` | 按空行分句，校验 10 列与 ID 形态，出错带行号 |
 | `to_string(sentences) -> String` | 序列化整份文档，每句后补规范空行 |
 | `Sentence::to_string()` | 单句序列化 |
+| `Sentence::to_json()` | 单句 JSON 对象（计数、注释、逐 token 原始列） |
+| `to_json(sentences, source?=...)` | 整份文档 JSON，`{"source": ..., "sentences": [...]}` |
 | `Sentence::words()` / `rows()` / `comments()` | 词行 / 全部行 / 注释 |
 | `Sentence::word_count()` | 词行数量（不含多词与空节点） |
 | `Sentence::word(i) -> Token?` | 按 1-based 词序取词 |
@@ -295,6 +314,9 @@ python3 tools/diff_test.py --report
 | `validate(sentences) -> Array[Diagnostic]` | 全文档校验 |
 | `validate_sentence(sentence)` | 单句校验 |
 | `validate_documents(sentences)` | 跨句 checks：sent_id / newdoc / newpar 的唯一性与缺失 |
+| `Diagnostic::to_string()` | `line 7: error [CODE] message` |
+| `Diagnostic::to_json()` | 单条诊断的 JSON 对象 |
+| `diagnostics_to_json(diagnostics)` | 诊断列表作为 JSON 数组 |
 | `count_errors(diagnostics) -> Int32` | 只数 `Error` 级别 |
 | `Diagnostic::to_string()` | `line 12: error [ROOT_COUNT] ...` |
 
