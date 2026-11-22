@@ -129,6 +129,56 @@ python3 tools/diff_test.py --report
 
 对拍过程里发现并修掉的两个真实 bug：`8.1:obj` 这类指向空节点的 DEPS 被当成数字 `81`（越界误报），以及增强 DEPS 里合法的 `ref` 关系被判成未知标签。
 
+## API 参考
+
+完整文档注释可用 `moon doc --serve` 在本地预览（默认 `http://127.0.0.1:3000`），发布后也会出现在 mooncakes 的文档页。
+
+**解析与序列化**
+
+| 函数 | 说明 |
+| --- | --- |
+| `parse(text) -> Array[Sentence] raise ConlluError` | 按空行分句，校验 10 列与 ID 形态，出错带行号 |
+| `to_string(sentences) -> String` | 序列化整份文档，每句后补规范空行 |
+| `Sentence::to_string()` | 单句序列化 |
+| `Sentence::words()` / `rows()` / `comments()` | 词行 / 全部行 / 注释 |
+| `Sentence::word_count()` | 词行数量（不含多词与空节点） |
+| `Sentence::word(i) -> Token?` | 按 1-based 词序取词 |
+| `Sentence::comment(key)` | 取 `# key = value` 的 value |
+| `Token::head() -> Int32?` | HEAD 解析为整数，非数字返回 `None` |
+| `Token::is_word()` / `is_multiword()` / `is_empty_node()` | 行类型判定 |
+| `Token::to_line()` | 还原一行 10 列 |
+
+**校验**
+
+| 函数 | 说明 |
+| --- | --- |
+| `validate(sentences) -> Array[Diagnostic]` | 全文档校验 |
+| `validate_sentence(sentence)` | 单句校验 |
+| `count_errors(diagnostics) -> Int32` | 只数 `Error` 级别 |
+| `Diagnostic::to_string()` | `line 12: error [ROOT_COUNT] ...` |
+
+**依存树**
+
+| 函数 | 说明 |
+| --- | --- |
+| `children(s, head)` / `descendants(s, node)` | 直接孩子 / 全部后代 |
+| `path(s, from, to) -> Array[Int32]?` | 从 `from` 沿 HEAD 到祖先 `to`（`to = 0` 走到根） |
+| `is_ancestor(s, a, b)` | `a` 是否为 `b` 的祖先 |
+| `depth(s, i)` / `max_depth(s)` | 深度 / 最大深度 |
+| `is_projective(s)` | 是否无交叉弧 |
+| `roots(s)` / `is_single_rooted(s)` | 根节点 / 是否单根 |
+
+**评测与统计**
+
+| 函数 | 说明 |
+| --- | --- |
+| `evaluate(gold, pred) -> EvalResult` | 对齐后计算 UAS / UUAS / LAS |
+| `EvalResult::uas()` / `uuas()` / `las()` | 百分制分数；`uuas` 不计方向 |
+| `evaluate_by_label(gold, pred)` | 按 gold 关系拆开的 LAS，最差的排最前 |
+| `LabelScore::las()` / `to_string()` | 单关系准确率 |
+| `stats(sentences) -> Stats` | 句数、词数、多词、空节点、注释、最长句、树库 |
+| `Stats::average_length()` / `to_string()` | 平均句长 / 一行摘要 |
+
 ## 许可与语料
 
 代码 Apache-2.0。UD 树库是 CC BY-SA 4.0，只作为测试夹具下载，不进仓库、不进发布包；引用请遵循 Universal Dependencies 项目的署名要求。
