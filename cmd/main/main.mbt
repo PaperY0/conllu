@@ -5,7 +5,7 @@ fn usage() -> Unit {
   println("Usage:")
   println("  conllu stats <file>              corpus statistics")
   println(
-    "  conllu validate <file>          structural validation (--documents: ids across sentences)",
+    "  conllu validate <file>          structural validation (--documents, --format json)",
   )
   println(
     "  conllu eval <gold> <pred>       UAS / LAS of a predicted parse (--by-document)",
@@ -241,7 +241,7 @@ fn cmd_stats(path : String, json : Bool) -> Unit {
 }
 
 ///|
-fn cmd_validate(path : String, documents : Bool) -> Unit {
+fn cmd_validate(path : String, documents : Bool, json : Bool) -> Unit {
   let sentences = load(path)
   let diagnostics : Array[@conllu.Diagnostic] = []
   for d in @conllu.validate(sentences) {
@@ -252,13 +252,28 @@ fn cmd_validate(path : String, documents : Bool) -> Unit {
       diagnostics.push(d)
     }
   }
-  for d in diagnostics {
-    println(d.to_string())
-  }
   let errors = @conllu.count_errors(diagnostics)
-  println(
-    "diagnostics=\{diagnostics.length()} errors=\{errors} warnings=\{diagnostics.length() - errors}",
-  )
+  let warnings = diagnostics.length() - errors
+  if json {
+    println(
+      "{\"file\":" +
+      json_str(path) +
+      ",\"diagnostics\":" +
+      @conllu.diagnostics_to_json(diagnostics) +
+      ",\"errors\":" +
+      errors.to_string() +
+      ",\"warnings\":" +
+      warnings.to_string() +
+      "}",
+    )
+  } else {
+    for d in diagnostics {
+      println(d.to_string())
+    }
+    println(
+      "diagnostics=\{diagnostics.length()} errors=\{errors} warnings=\{warnings}",
+    )
+  }
   if errors > 0 {
     @env.exit(1)
   }
@@ -393,94 +408,14 @@ fn json_str(value : String) -> String {
 }
 
 ///|
-fn token_json(row : @conllu.Token) -> String {
-  let kind = match row.kind {
-    @conllu.Word => "word"
-    @conllu.Multiword => "multiword"
-    @conllu.Empty => "empty"
-  }
-  "{\"kind\":" +
-  json_str(kind) +
-  ",\"id\":" +
-  json_str(row.id_raw) +
-  ",\"form\":" +
-  json_str(row.form) +
-  ",\"lemma\":" +
-  json_str(row.lemma) +
-  ",\"upos\":" +
-  json_str(row.upos) +
-  ",\"xpos\":" +
-  json_str(row.xpos) +
-  ",\"feats\":" +
-  json_str(row.feats) +
-  ",\"head\":" +
-  json_str(row.head_raw) +
-  ",\"deprel\":" +
-  json_str(row.deprel) +
-  ",\"deps\":" +
-  json_str(row.deps) +
-  ",\"misc\":" +
-  json_str(row.misc) +
-  ",\"line\":" +
-  row.line.to_string() +
-  "}"
-}
 
 ///|
 /// Machine-readable form of `dump`: one JSON object for the whole file, with
-/// every token keeping its raw column values. Used by wrappers in other
-/// languages that do not want to parse the line-oriented dump.
+/// every token keeping its raw column values. The JSON itself comes from
+/// `@conllu.to_json`, so the library and the CLI cannot drift apart.
 fn cmd_dump_json(path : String) -> Unit {
   let sentences = load(path)
-  let mut out = "{\"source\":" + json_str(path) + ",\"sentences\":["
-  let mut i = 0
-  while i < sentences.length() {
-    let sentence = sentences.at(i)
-    if i > 0 {
-      out = out + ","
-    }
-    let mut multi = 0
-    let mut empty = 0
-    for row in sentence.rows() {
-      if row.is_multiword() {
-        multi = multi + 1
-      }
-      if row.is_empty_node() {
-        empty = empty + 1
-      }
-    }
-    out = out +
-      "{\"line\":" +
-      sentence.line.to_string() +
-      ",\"words\":" +
-      sentence.word_count().to_string() +
-      ",\"multiword\":" +
-      multi.to_string() +
-      ",\"empty\":" +
-      empty.to_string() +
-      ",\"comments\":["
-    let mut c = 0
-    for comment in sentence.comments() {
-      if c > 0 {
-        out = out + ","
-      }
-      out = out + json_str(comment)
-      c = c + 1
-    }
-    out = out + "],\"tokens\":["
-    let mut t = 0
-    for row in sentence.rows() {
-      if t > 0 {
-        out = out + ","
-      }
-      out = out + token_json(row)
-      t = t + 1
-    }
-    out = out + "]}"
-    i = i + 1
-  }
-  out = out + "]}"
-  println(out)
+  println(@conllu.to_json(sentences, source=path))
 }
 
 ///|
@@ -619,13 +554,34 @@ fn main {
         @env.exit(2)
       }
     "validate" =>
-      if args.length() == 3 {
-        cmd_validate(args.at(2), false)
-      } else if args.length() == 4 && args.at(3) == "--documents" {
-        cmd_validate(args.at(2), true)
-      } else {
+      if args.length() < 3 {
         usage()
         @env.exit(2)
+      } else {
+        let mut documents = false
+        let mut json = false
+        let mut i = 3
+        while i < args.length() {
+          let arg = args.at(i)
+          if arg == "--documents" {
+            documents = true
+            i = i + 1
+          } else if arg == "--format" && i + 1 < args.length() {
+            let format = args.at(i + 1)
+            if format == "json" {
+              json = true
+            } else if format != "text" {
+              fail("unknown validate format \{format} (expected text or json)")
+            }
+            i = i + 2
+          } else if arg == "--format=json" {
+            json = true
+            i = i + 1
+          } else {
+            fail("unknown validate option \{arg}")
+          }
+        }
+        cmd_validate(args.at(2), documents, json)
       }
     "eval" =>
       if args.length() == 4 {
