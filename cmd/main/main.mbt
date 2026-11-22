@@ -17,6 +17,9 @@ fn usage() -> Unit {
     "  conllu docs <file>              document and paragraph structure",
   )
   println(
+    "  conllu analyze <file>           coverage report: tags, trees, sentence shapes",
+  )
+  println(
     "  conllu compress <in> <out>      serialize and write back, gzip when <out> ends in .gz",
   )
   println("")
@@ -73,6 +76,17 @@ fn file_size(path : String) -> Int32 {
     _ => fail("cannot read \{path}")
   }
   bytes.length()
+}
+
+///|
+/// Coverage report. Exits non-zero when the corpus uses tags or relations that
+/// the UD spec does not define, so the command doubles as a corpus gate.
+fn cmd_analyze(path : String) -> Unit {
+  let cov = @conllu.coverage(load(path))
+  println(cov.to_string())
+  if cov.unknown_upos.length() > 0 || cov.unknown_deprel.length() > 0 {
+    @env.exit(1)
+  }
 }
 
 ///|
@@ -477,6 +491,13 @@ fn main {
       } else {
         usage()
         @env.exit(2)
+      }
+    "analyze" =>
+      if args.length() != 3 {
+        usage()
+        @env.exit(2)
+      } else {
+        cmd_analyze(args.at(2))
       }
     "docs" =>
       if args.length() != 3 {

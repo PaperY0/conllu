@@ -6,6 +6,8 @@ pub fn children(Sentence, Int32) -> Array[Int32]
 
 pub fn count_errors(Array[Diagnostic]) -> Int32
 
+pub fn coverage(Array[Sentence]) -> Coverage
+
 pub fn depth(Sentence, Int32) -> Int32
 
 pub fn descendants(Sentence, Int32) -> Array[Int32]
@@ -46,6 +48,33 @@ pub fn ConlluError::line(Self) -> Int32
 pub fn ConlluError::message(Self) -> String
 
 // Types and methods
+pub struct Coverage {
+  mut sentences : Int32
+  mut words : Int32
+  upos_used : Array[String]
+  mut upos_missing : Array[String]
+  deprel_used : Array[String]
+  mut deprel_missing : Array[String]
+  unknown_upos : Array[String]
+  unknown_deprel : Array[String]
+  mut untagged : Int32
+  mut projective : Int32
+  mut non_projective : Int32
+  mut single_rooted : Int32
+  mut multi_rooted : Int32
+  mut max_depth : Int32
+  mut avg_depth : Double
+  mut long_sentences : Int32
+  mut empty_nodes : Int32
+  mut multiword_tokens : Int32
+  mut documents : Int32
+  mut paragraphs : Int32
+}
+pub fn Coverage::full_deprel(Self) -> Bool
+pub fn Coverage::full_upos(Self) -> Bool
+pub fn Coverage::projectivity(Self) -> Double
+pub fn Coverage::to_string(Self) -> String
+
 pub struct Diagnostic {
   line : Int32
   severity : Severity

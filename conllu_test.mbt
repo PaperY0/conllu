@@ -203,6 +203,40 @@ test "group: a file without newdoc is one anonymous document" {
 }
 
 ///|
+test "coverage: tags, trees and sentence shapes" {
+  let cov = @conllu.coverage(@conllu.parse(complex))
+  assert_eq(cov.sentences, 2)
+  assert_eq(cov.words, 4)
+  assert_eq(cov.upos_used.length(), 4)
+  assert_eq(cov.upos_missing.length(), 13)
+  assert_eq(cov.deprel_used.length(), 3)
+  assert_eq(cov.unknown_upos.length(), 0)
+  assert_eq(cov.unknown_deprel.length(), 0)
+  assert_eq(cov.projectivity(), 100.0)
+  assert_eq(cov.single_rooted, 2)
+  assert_eq(cov.multiword_tokens, 1)
+  assert_eq(cov.empty_nodes, 1)
+  assert_eq(cov.documents, 1)
+  assert_eq(cov.paragraphs, 1)
+  assert_eq(cov.long_sentences, 0)
+  assert_false(cov.full_upos())
+}
+
+///|
+test "coverage: labels outside the UD spec are reported" {
+  let bad : String = "1\ta\ta\tFOO\tX\t_\t0\tweirdrel\t_\t_\n2\tb\tb\tNOUN\tNN\t_\t0\troot\t_\t_\n"
+  let cov = @conllu.coverage(@conllu.parse(bad))
+  assert_eq(cov.unknown_upos.length(), 1)
+  assert_eq(cov.unknown_upos[0], "FOO")
+  assert_eq(cov.unknown_deprel.length(), 1)
+  assert_eq(cov.unknown_deprel[0], "weirdrel")
+  assert_eq(cov.multi_rooted, 1)
+  assert_eq(cov.single_rooted, 0)
+  assert_eq(cov.untagged, 0)
+  assert_false(cov.full_deprel())
+}
+
+///|
 test "stats: counts rows by kind" {
   let sentences = @conllu.parse(complex)
   let st = @conllu.stats(sentences)
