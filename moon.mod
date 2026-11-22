@@ -11,7 +11,7 @@
 
 name = "PaperY0/conllu"
 
-version = "0.1.1"
+version = "0.2.0"
 
 readme = "README.mbt.md"
 
@@ -29,7 +29,7 @@ keywords = [
 
 preferred_target = "wasm"
 
-description = "CoNLL-U / Universal Dependencies toolchain: lossless parse and serialize, spec validation, tree queries, UAS/LAS evaluation, corpus statistics."
+description = "CoNLL-U / Universal Dependencies toolchain: lossless parse and serialize, spec validation, tree queries, UAS/LAS evaluation, corpus statistics, document grouping, coverage analysis."
 
 import {
   "moonbitlang/x@0.5.8",
