@@ -12,6 +12,8 @@ pub fn descendants(Sentence, Int32) -> Array[Int32]
 
 pub fn evaluate(Array[Sentence], Array[Sentence]) -> EvalResult
 
+pub fn evaluate_by_label(Array[Sentence], Array[Sentence]) -> Array[LabelScore]
+
 pub fn is_ancestor(Sentence, Int32, Int32) -> Bool
 
 pub fn is_projective(Sentence) -> Bool
@@ -52,11 +54,21 @@ pub struct EvalResult {
   mut gold_tokens : Int32
   mut aligned_tokens : Int32
   mut uas_correct : Int32
+  mut uuas_correct : Int32
   mut las_correct : Int32
 }
 pub fn EvalResult::las(Self) -> Double
 pub fn EvalResult::to_string(Self) -> String
 pub fn EvalResult::uas(Self) -> Double
+pub fn EvalResult::uuas(Self) -> Double
+
+pub struct LabelScore {
+  label : String
+  gold : Int32
+  correct : Int32
+}
+pub fn LabelScore::las(Self) -> Double
+pub fn LabelScore::to_string(Self) -> String
 
 pub(all) enum RowKind {
   Word

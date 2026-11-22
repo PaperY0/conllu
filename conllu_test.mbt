@@ -122,6 +122,35 @@ test "tree: children, depth and projectivity" {
 }
 
 ///|
+test "eval: uuas tolerates a reversed direction" {
+  let gold : String = "1\ta\ta\tNOUN\tNN\t_\t2\tnsubj\t_\t_\n2\tb\tb\tVERB\tVB\t_\t0\troot\t_\t_\n"
+  let pred : String = "1\ta\ta\tNOUN\tNN\t_\t0\troot\t_\t_\n2\tb\tb\tVERB\tVB\t_\t1\tnsubj\t_\t_\n"
+  let g = @conllu.parse(gold)
+  let p = @conllu.parse(pred)
+  let result = @conllu.evaluate(g, p)
+  assert_eq(result.uas(), 0.0)
+  assert_eq(result.las(), 0.0)
+  assert_eq(result.uuas(), 50.0)
+}
+
+///|
+test "eval: label-wise accuracy ranks the worst relation first" {
+  let gold : String = "1\ta\ta\tNOUN\tNN\t_\t2\tnsubj\t_\t_\n2\tb\tb\tVERB\tVB\t_\t0\troot\t_\t_\n3\tc\tc\tNOUN\tNN\t_\t2\tobj\t_\t_\n"
+  let pred : String = "1\ta\ta\tNOUN\tNN\t_\t2\tobj\t_\t_\n2\tb\tb\tVERB\tVB\t_\t0\troot\t_\t_\n3\tc\tc\tNOUN\tNN\t_\t2\tobj\t_\t_\n"
+  let g = @conllu.parse(gold)
+  let p = @conllu.parse(pred)
+  let scores = @conllu.evaluate_by_label(g, p)
+  assert_eq(scores.length(), 3)
+  assert_eq(scores[0].label, "nsubj")
+  assert_eq(scores[0].gold, 1)
+  assert_eq(scores[0].correct, 0)
+  assert_eq(scores[0].las(), 0.0)
+  assert_eq(scores[1].label, "obj")
+  assert_eq(scores[1].las(), 100.0)
+  assert_eq(scores[2].label, "root")
+}
+
+///|
 test "stats: counts rows by kind" {
   let sentences = @conllu.parse(complex)
   let st = @conllu.stats(sentences)

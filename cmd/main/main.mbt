@@ -6,6 +6,7 @@ fn usage() -> Unit {
   println("  conllu stats <file>              corpus statistics")
   println("  conllu validate <file>          structural validation")
   println("  conllu eval <gold> <pred>       UAS / LAS of a predicted parse")
+  println("  conllu labels <gold> <pred>     per-relation labelled accuracy")
   println(
     "  conllu roundtrip <file>         parse + serialize, report the diff",
   )
@@ -71,6 +72,40 @@ fn cmd_eval(gold_path : String, pred_path : String) -> Unit {
   if result.aligned_tokens == 0 {
     @env.exit(1)
   }
+}
+
+///|
+fn cmd_labels(gold_path : String, pred_path : String) -> Unit {
+  let gold = load(gold_path)
+  let pred = load(pred_path)
+  let scores = @conllu.evaluate_by_label(gold, pred)
+  println("label                 gold  correct    las")
+  for s in scores {
+    let las = (s.las() * 100.0).to_int().to_double() / 100.0
+    println(
+      "\{pad_right(s.label, 20)} \{pad(s.gold.to_string(), 5)} \{pad(s.correct.to_string(), 8)} \{las}%",
+    )
+  }
+}
+
+///|
+/// Left-pads `value` with spaces so numeric columns stay aligned.
+fn pad(value : String, width : Int32) -> String {
+  let mut out = value
+  while out.length() < width {
+    out = " " + out
+  }
+  out
+}
+
+///|
+/// Right-pads `value` so the text column stays aligned.
+fn pad_right(value : String, width : Int32) -> String {
+  let mut out = value
+  while out.length() < width {
+    out = out + " "
+  }
+  out
 }
 
 ///|
@@ -186,6 +221,13 @@ fn main {
         @env.exit(2)
       } else {
         cmd_eval(args.at(2), args.at(3))
+      }
+    "labels" =>
+      if args.length() != 4 {
+        usage()
+        @env.exit(2)
+      } else {
+        cmd_labels(args.at(2), args.at(3))
       }
     "dump" =>
       if args.length() != 3 {

@@ -6,7 +6,20 @@ pub struct EvalResult {
   mut gold_tokens : Int32
   mut aligned_tokens : Int32
   mut uas_correct : Int32
+  mut uuas_correct : Int32
   mut las_correct : Int32
+}
+
+///|
+/// Undirected attachment score in percent: a token counts as correct when it
+/// points at the same head as the gold parse, ignoring the direction of the
+/// dependency. Useful when a parser gets the attachment right but the direction
+/// or the label wrong.
+pub fn EvalResult::uuas(self : EvalResult) -> Double {
+  if self.aligned_tokens == 0 {
+    return 0.0
+  }
+  self.uuas_correct.to_double() / self.aligned_tokens.to_double() * 100.0
 }
 
 ///|
@@ -38,6 +51,7 @@ pub fn evaluate(gold : Array[Sentence], pred : Array[Sentence]) -> EvalResult {
     gold_tokens: 0,
     aligned_tokens: 0,
     uas_correct: 0,
+    uuas_correct: 0,
     las_correct: 0,
   }
   let mut i = 0
@@ -69,6 +83,9 @@ pub fn evaluate(gold : Array[Sentence], pred : Array[Sentence]) -> EvalResult {
       r.aligned_tokens = r.aligned_tokens + 1
       let gh = gtok.head()
       let ph = ptok.head()
+      if undirected_match(gw, gtok.start, gh, ph) {
+        r.uuas_correct = r.uuas_correct + 1
+      }
       if gh == ph {
         r.uas_correct = r.uas_correct + 1
         if gtok.deprel == ptok.deprel {
@@ -86,11 +103,138 @@ pub fn evaluate(gold : Array[Sentence], pred : Array[Sentence]) -> EvalResult {
 }
 
 ///|
+/// True when the gold edge and the predicted edge connect the same pair of
+/// words, in either direction. A parser that attaches `a` to `b` while gold has
+/// `b` attached to `a` still found the right pair, just picked the wrong side.
+fn undirected_match(
+  gold_words : Array[Token],
+  id : Int32,
+  gold_head : Int32?,
+  pred_head : Int32?,
+) -> Bool {
+  if gold_head == pred_head {
+    return true
+  }
+  match pred_head {
+    Some(p) =>
+      if p == 0 || p == id || p > gold_words.length() {
+        false
+      } else {
+        gold_words.at(p - 1).head() == Some(id)
+      }
+    None => false
+  }
+}
+
+///|
+/// Labelled accuracy of one dependency relation.
+pub struct LabelScore {
+  label : String
+  gold : Int32
+  correct : Int32
+}
+
+///|
+/// Labelled accuracy of this relation in percent.
+pub fn LabelScore::las(self : LabelScore) -> Double {
+  if self.gold == 0 {
+    return 0.0
+  }
+  self.correct.to_double() / self.gold.to_double() * 100.0
+}
+
+///|
+/// One-line summary: `label=nsubj gold=210 correct=198 las=94.29%`.
+pub fn LabelScore::to_string(self : LabelScore) -> String {
+  let las = (self.las() * 100.0).to_int().to_double() / 100.0
+  "label=\{self.label} gold=\{self.gold} correct=\{self.correct} las=\{las}%"
+}
+
+///|
+fn label_index(labels : Array[String], label : String) -> Int32 {
+  let mut i = 0
+  while i < labels.length() {
+    if labels.at(i) == label {
+      return i
+    }
+    i = i + 1
+  }
+  -1
+}
+
+///|
+/// Labelled accuracy broken down by the gold relation, worst first, so a parser
+/// can see which relations it confuses instead of a single aggregate number.
+pub fn evaluate_by_label(
+  gold : Array[Sentence],
+  pred : Array[Sentence],
+) -> Array[LabelScore] {
+  let labels : Array[String] = []
+  let counts : Array[Int32] = []
+  let correct : Array[Int32] = []
+  let mut i = 0
+  let common = if gold.length() < pred.length() {
+    gold.length()
+  } else {
+    pred.length()
+  }
+  while i < common {
+    let gw = gold.at(i).words()
+    let pw = pred.at(i).words()
+    i = i + 1
+    if gw.length() != pw.length() {
+      continue
+    }
+    let mut j = 0
+    while j < gw.length() {
+      let gtok = gw.at(j)
+      let ptok = pw.at(j)
+      j = j + 1
+      if gtok.start != ptok.start {
+        continue
+      }
+      let mut idx = label_index(labels, gtok.deprel)
+      if idx < 0 {
+        labels.push(gtok.deprel)
+        counts.push(0)
+        correct.push(0)
+        idx = labels.length() - 1
+      }
+      counts[idx] = counts[idx] + 1
+      if gtok.head() == ptok.head() && gtok.deprel == ptok.deprel {
+        correct[idx] = correct[idx] + 1
+      }
+    }
+  }
+  let out : Array[LabelScore] = []
+  let mut k = 0
+  while k < labels.length() {
+    out.push({
+      label: labels.at(k),
+      gold: counts.at(k),
+      correct: correct.at(k),
+    })
+    k = k + 1
+  }
+  out.sort_by(fn(a, b) {
+    let ea = a.gold - a.correct
+    let eb = b.gold - b.correct
+    if ea != eb {
+      eb - ea
+    } else {
+      String::compare(a.label, b.label)
+    }
+  })
+  out
+}
+
+///|
 /// One-line summary of the evaluation, as printed by the CLI.
 pub fn EvalResult::to_string(self : EvalResult) -> String {
   let uas = (self.uas() * 100.0).to_int().to_double() / 100.0
+  let uuas = (self.uuas() * 100.0).to_int().to_double() / 100.0
   let las = (self.las() * 100.0).to_int().to_double() / 100.0
-  "sentences=\{self.sentence_pairs} tokens=\{self.aligned_tokens} skipped=\{self.skipped_sentences} UAS=\{uas}% LAS=\{las}%"
+  "sentences=\{self.sentence_pairs} tokens=\{self.aligned_tokens} skipped=\{self.skipped_sentences} UAS=\{uas}% UUAS=\{uuas}% LAS=\{las}%"
 }
 
 ///|
