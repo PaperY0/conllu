@@ -1,0 +1,3 @@
+line 1: error [ROOT_COUNT] sentence has 2 roots, exactly one is required
+line 7: error [SENT_ID_DUPLICATE] sent_id s1 is used by more than one sentence
+diagnostics=2 errors=2 warnings=0

@@ -1,0 +1,1 @@
+{"file":"tests/golden/broken.conllu","diagnostics":[{"line":1,"severity":"error","code":"ROOT_COUNT","message":"sentence has 2 roots, exactly one is required"},{"line":7,"severity":"error","code":"SENT_ID_DUPLICATE","message":"sent_id s1 is used by more than one sentence"}],"errors":2,"warnings":0}

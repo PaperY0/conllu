@@ -1,0 +1,7 @@
+D 1
+S 5 0 0 2
+w 1 I PRON 2 nsubj
+w 2 saw VERB 0 root
+w 3 the DET 4 det
+w 4 cat NOUN 2 obj
+w 5 . PUNCT 2 punct

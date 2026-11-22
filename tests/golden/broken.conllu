@@ -1,0 +1,10 @@
+# newdoc id = dup
+# newpar
+# sent_id = s1
+1	a	a	NOUN	NN	_	0	root	_	_
+2	b	b	NOUN	NN	_	0	root	_	_
+
+# sent_id = s1
+# text = duplicate sentence id
+1	c	c	NOUN	NN	_	2	dep	_	_
+2	d	d	NOUN	NN	_	0	root	_	_

@@ -1,0 +1,13 @@
+[
+  {"name": "sample_stats", "args": ["stats", "examples/sample.conllu"]},
+  {"name": "sample_validate", "args": ["validate", "examples/sample.conllu"]},
+  {"name": "sample_dump", "args": ["dump", "examples/sample.conllu"]},
+  {"name": "sample_dump_json", "args": ["dump", "examples/sample.conllu", "--format", "json"]},
+  {"name": "sample_dump_tsv", "args": ["dump", "examples/sample.conllu", "--format", "tsv"]},
+  {"name": "sample_eval", "args": ["eval", "examples/sample.conllu", "examples/sample.conllu"]},
+  {"name": "documents_docs", "args": ["docs", "tests/golden/documents.conllu"]},
+  {"name": "documents_analyze", "args": ["analyze", "--format", "json", "tests/golden/documents.conllu", "examples/sample.conllu"]},
+  {"name": "documents_validate", "args": ["validate", "tests/golden/documents.conllu", "--documents"]},
+  {"name": "broken_validate", "args": ["validate", "tests/golden/broken.conllu", "--documents"], "exit": 1},
+  {"name": "broken_validate_json", "args": ["validate", "tests/golden/broken.conllu", "--documents", "--format", "json"], "exit": 1}
+]

@@ -1,0 +1,6 @@
+sentence	sent_line	kind	id	form	lemma	upos	xpos	feats	head	deprel	deps	misc
+1	1	word	1	I	I	PRON	PRP	_	2	nsubj	_	_
+1	1	word	2	saw	see	VERB	VBD	Tense=Past	0	root	_	_
+1	1	word	3	the	the	DET	DT	_	4	det	_	_
+1	1	word	4	cat	cat	NOUN	NN	Number=Sing	2	obj	_	SpaceAfter=No
+1	1	word	5	.	.	PUNCT	.	_	2	punct	_	_
