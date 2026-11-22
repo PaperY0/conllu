@@ -1,5 +1,6 @@
 # PaperY0/conllu
 
+[![CI](https://github.com/PaperY0/conllu/actions/workflows/ci.yml/badge.svg)](https://github.com/PaperY0/conllu/actions/workflows/ci.yml)
 [![mooncakes](https://img.shields.io/badge/mooncakes-PaperY0%2Fconllu-blue)](https://mooncakes.io/docs/#/PaperY0/conllu/)
 [![license](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
 
