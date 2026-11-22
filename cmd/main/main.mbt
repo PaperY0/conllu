@@ -13,6 +13,9 @@ fn usage() -> Unit {
   println(
     "  conllu dump <file>              stable row dump, for differential testing",
   )
+  println(
+    "  conllu compress <in> <out>      serialize and write back, gzip when <out> ends in .gz",
+  )
   println("")
   println("<file> may be plain text or gzipped (`.conllu.gz`).")
 }
@@ -43,6 +46,56 @@ fn read(path : String) -> String {
       _ => fail("cannot read \{path}")
     }
   }
+}
+
+///|
+/// Writes `text` as UTF-8 bytes, gzip-compressed when `path` ends in `.gz`. This
+/// is the counterpart of `read`, so a treebank that arrived compressed can be
+/// written back compressed without expanding it to disk first.
+fn write_text(path : String, text : String) -> Unit {
+  let bytes = @utf8.encode(text)
+  let payload = if path.has_suffix(".gz") {
+    @gzip.compress(bytes)
+  } else {
+    bytes
+  }
+  @fs.write_bytes_to_file(path, payload) catch {
+    _ => fail("cannot write \{path}")
+  }
+}
+
+///|
+fn file_size(path : String) -> Int32 {
+  let bytes = @fs.read_file_to_bytes(path) catch {
+    _ => fail("cannot read \{path}")
+  }
+  bytes.length()
+}
+
+///|
+/// Reads a treebank, serializes it with the canonical writer and writes it back,
+/// compressing when the output path ends in `.gz`. The result is read again and
+/// compared with what was written, so a broken compression path fails loudly
+/// instead of producing a file that only looks fine.
+fn cmd_compress(input : String, output : String) -> Unit {
+  let sentences = load(input)
+  let rendered = @conllu.to_string(sentences)
+  write_text(output, rendered)
+  let back = read(output)
+  if back != rendered {
+    fail("self-check failed: \{output} does not read back identically")
+  }
+  let in_bytes = file_size(input)
+  let out_bytes = file_size(output)
+  let ratio = if in_bytes == 0 {
+    0.0
+  } else {
+    out_bytes.to_double() / in_bytes.to_double() * 100.0
+  }
+  println(
+    "compress: \{sentences.length()} sentences \{in_bytes} -> \{out_bytes} bytes (\{pct(ratio)}% of input)",
+  )
+  println("verify: \{output} reads back identically")
 }
 
 ///|
@@ -103,6 +156,13 @@ fn cmd_labels(gold_path : String, pred_path : String) -> Unit {
       "\{pad_right(s.label, 20)} \{pad(s.gold.to_string(), 5)} \{pad(s.correct.to_string(), 8)} \{las}%",
     )
   }
+}
+
+///|
+/// Formats a percentage with two decimals, as `94.29`.
+fn pct(value : Double) -> String {
+  let rounded = (value * 100.0).to_int().to_double() / 100.0
+  rounded.to_string()
 }
 
 ///|
@@ -387,6 +447,13 @@ fn main {
       } else {
         usage()
         @env.exit(2)
+      }
+    "compress" =>
+      if args.length() != 4 {
+        usage()
+        @env.exit(2)
+      } else {
+        cmd_compress(args.at(2), args.at(3))
       }
     "roundtrip" =>
       if args.length() != 3 {
