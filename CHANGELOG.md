@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.3.0 — 2026-11-22
+
+按文档评测、多文件覆盖汇总与 TSV 导出。
+
+- `evaluate_by_document(gold, pred)` / `DocumentScore`：按 gold 的 `# newdoc` 分组分别算
+  UAS / LAS，最差文档排最前；预测漏掉整篇文档时该行对齐词为 0，不会把分数摊平。
+  CLI `eval <gold> <pred> --by-document` 打表并附整体 total。
+- `merge_coverage(covs)`：多文件合并，标签取并集、计数相加、缺失标签按规范重算、平均树深
+  按词数加权重算；`analyze` 接受多个文件，输出一行一文件加一行 TOTAL。
+  六个 UD 切分合计 6,128 句 / 100,238 词，合并后覆盖 17/17 UPOS 与 37/37 DEPREL
+  （单独任何一个切分都做不到）。
+- CLI `dump --format tsv`：固定 13 列表头，一行一个 token，可直接
+  `pandas.read_csv(sep="\t")`。
+- 差分脚本新增第五项检查：TSV 表头、行数以及逐行 `kind/id/form/upos/head/deprel`
+  必须与行式 dump 一致；六个切分全部通过。
+
 ## 0.2.0 — 2026-11-22
 
 文档结构、覆盖分析与压缩写回，新增 API，与 0.1.x 兼容。

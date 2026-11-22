@@ -16,7 +16,8 @@ CoNLL-U 是 UD 树库（Universal Dependencies 项目，200+ 语言树库）的�
 - **评测**：`evaluate(gold, pred)` 给出 UAS / LAS（百分制），按 1-based 词序对齐，长度不等的句子计入 `skipped_sentences` 而不是静默丢掉。
 - **树查询**：`children` / `descendants` / `depth` / `is_ancestor` / `is_projective` / `roots` / `path` / `is_single_rooted`。
 - **文档分组**：按 `# newdoc` / `# newpar` 还原 `Document → Paragraph → Sentence` 三层结构，没有边界声明的文件仍算一个匿名文档。
-- **覆盖分析**：`coverage` 一次遍历统计 UPOS 与 DEPREL 命中率、规范外标签、投射性与树深、长句与空节点，CLI 里可直接当语料门槛用。
+- **覆盖分析**：`coverage` 一次遍历统计 UPOS 与 DEPREL 命中率、规范外标签、投射性与树深、长句与空节点，CLI 里可直接当语料门槛用；`merge_coverage` 把 dev/test 合成一张表。
+- **按文档评测**：`evaluate_by_document` 按 `# newdoc` 分组算 UAS / LAS，最差的文档排最前；预测漏掉整篇文档时显示为 0 对齐词，不会把分数悄悄摊平。
 - **统计**：句数、词数、多词 token、空节点、注释、最长句、平均句长、涉及的树库。
 - **对拍过**：与 Python `conllu` 参考解析器在 UD_English-EWT、UD_Chinese-GSD、UD_Japanese-GSD 的 dev/test 六个切分（6,128 句、107,091 行）上逐字段零差异，见 [DIFF-REPORT.md](DIFF-REPORT.md)。
 
@@ -109,6 +110,19 @@ test {
 }
 ```
 
+多文件时用 `merge_coverage` 或直接给 CLI 多个路径：标签取并集、计数相加、缺失标签按规范重算，平均树深按词数加权重算，不会出现"平均的平均"：
+
+```bash
+moon run cmd/main -- analyze data/ud/en_ewt-ud-dev.conllu data/ud/zh_gsd-ud-test.conllu
+```
+
+```
+file                            sentences   words  upos deprel unknown projective  depth
+en_ewt-ud-dev.conllu                2001   25148 17/17  36/37       0     98.35%     11
+zh_gsd-ud-test.conllu                500   12010 16/17  29/37       0      97.2%     10
+TOTAL                               2501   37158 17/17  37/37       0     98.12%     11
+```
+
 ## 评测 UAS / LAS
 
 ```mbt check
@@ -124,6 +138,32 @@ test {
 }
 ```
 
+整体分数会掩盖"某几篇文档全错"的情况，`evaluate_by_document` 按 gold 的 `# newdoc` 分组分别算分，最差的排最前：
+
+```mbt check
+///|
+test {
+  let gold = "# newdoc id = d1\n1\ta\ta\tNOUN\tNN\t_\t2\tnsubj\t_\t_\n2\tb\tb\tVERB\tVB\t_\t0\troot\t_\t_\n"
+  let pred = "# newdoc id = d1\n1\ta\ta\tNOUN\tNN\t_\t0\troot\t_\t_\n2\tb\tb\tVERB\tVB\t_\t1\tnsubj\t_\t_\n"
+  let scores = @conllu.evaluate_by_document(
+    @conllu.parse(gold) catch {
+      _ => []
+    },
+    @conllu.parse(pred) catch {
+      _ => []
+    },
+  )
+  assert_eq(scores.length(), 1)
+  assert_eq(scores[0].id(), "d1")
+  assert_eq(scores[0].sentences(), 1)
+  assert_eq(scores[0].tokens(), 2)
+  // 两条边都接反了：UAS 与 LAS 都是 0。
+  assert_eq(scores[0].las(), 0.0)
+}
+```
+
+CLI 里 `eval <gold> <pred> --by-document` 直接打表，末尾附整体 total。
+
 ## 命令行
 
 包自带 `cmd/main`，子命令都直接吃文件，纯文本和 `.conllu.gz` 都支持，输出去 `.gz` 时自动压缩：
@@ -132,12 +172,15 @@ test {
 moon run cmd/main -- stats      treebank.conllu   # 句数/词数/多词/空节点/最长句/树库
 moon run cmd/main -- validate   treebank.conllu   # 诊断列表，有 error 时退出码 1
 moon run cmd/main -- eval       gold.conllu pred.conllu
+moon run cmd/main -- eval       gold.conllu pred.conllu --by-document
 moon run cmd/main -- labels     gold.conllu pred.conllu   # 按关系拆开的 LAS
 moon run cmd/main -- labels     gold.conllu pred.conllu --format csv
 moon run cmd/main -- docs       treebank.conllu   # 文档/段落结构与句数
 moon run cmd/main -- analyze    treebank.conllu   # 覆盖报告，规范外标签时退出码 1
+moon run cmd/main -- analyze    dev.conllu test.conllu   # 多文件表格 + TOTAL
 moon run cmd/main -- dump       treebank.conllu   # 归一化 dump，用于对拍
 moon run cmd/main -- dump       treebank.conllu --format json
+moon run cmd/main -- dump       treebank.conllu --format tsv
 moon run cmd/main -- roundtrip  treebank.conllu   # 解析再序列化，校验无损
 moon run cmd/main -- compress   treebank.conllu out.conllu.gz   # 规范序列化 + gzip 写回
 ```
@@ -155,6 +198,14 @@ w 1 From ADP 3 case
 ```
 
 需要结构化输出时用 `--format json`：一份文件一个 JSON 对象，句子带行号、注释、词/多词/空节点计数，token 保留原始 10 列值，方便别的语言写包装器。
+
+要直接进表格就用 `--format tsv`：固定 13 列表头（`sentence / sent_line / kind / id / form / lemma / upos / xpos / feats / head / deprel / deps / misc`），一行一个 token。CoNLL-U 的列本身不允许制表符，所以不用处理引号：
+
+```python
+import pandas as pd
+df = pd.read_csv("dump.tsv", sep="\t", dtype=str)
+df[df.kind == "word"].groupby("deprel").size().sort_values(ascending=False)
+```
 
 ## 差分对拍
 
@@ -234,6 +285,7 @@ python3 tools/diff_test.py --report
 | 函数 | 说明 |
 | --- | --- |
 | `coverage(sentences) -> Coverage` | 标签命中、规范外标签、树形与句长统计 |
+| `merge_coverage(covs) -> Coverage` | 合并多文件：标签取并集、计数相加、平均树深按词数重算 |
 | `Coverage::upos_used()` / `deprel_used()` | 实际出现的标签（字母序） |
 | `Coverage::upos_missing()` / `deprel_missing()` | 规范里没出现的标签 |
 | `Coverage::projectivity()` | 投射句占比（百分制） |
@@ -247,6 +299,8 @@ python3 tools/diff_test.py --report
 | `evaluate(gold, pred) -> EvalResult` | 对齐后计算 UAS / UUAS / LAS |
 | `EvalResult::uas()` / `uuas()` / `las()` | 百分制分数；`uuas` 不计方向 |
 | `evaluate_by_label(gold, pred)` | 按 gold 关系拆开的 LAS，最差的排最前 |
+| `evaluate_by_document(gold, pred)` | 按 `# newdoc` 分组评测，最差的文档排最前 |
+| `DocumentScore::id()` / `sentences()` / `tokens()` / `uas()` / `las()` | 单文档分数 |
 | `LabelScore::las()` / `to_string()` | 单关系准确率 |
 | `stats(sentences) -> Stats` | 句数、词数、多词、空节点、注释、最长句、树库 |
 | `Stats::average_length()` / `to_string()` | 平均句长 / 一行摘要 |

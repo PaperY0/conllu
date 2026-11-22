@@ -12,7 +12,8 @@ export PATH="$HOME/.moon/bin:$PATH"   # toolchain is not on PATH by default
 moon check                            # exits 0 even with type errors — read the output
 moon test                             # also type-checks the ```mbt check``` blocks in README.mbt.md
 moon run --target wasm cmd/main -- stats examples/sample.conllu
-moon run --target wasm cmd/main -- analyze data/ud/en_ewt-ud-dev.conllu
+moon run --target wasm cmd/main -- analyze data/ud/en_ewt-ud-dev.conllu data/ud/zh_gsd-ud-dev.conllu
+moon run --target wasm cmd/main -- eval examples/sample.conllu examples/sample.conllu --by-document
 moon run --target wasm cmd/main -- compress examples/sample.conllu /tmp/sample.conllu.gz
 moon info && moon fmt                 # run last; commit the .mbti diff
 ```
