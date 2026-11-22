@@ -109,6 +109,131 @@ fn pad_right(value : String, width : Int32) -> String {
 }
 
 ///|
+/// Replaces every occurrence of `from` with `to` (non-overlapping).
+fn replace_all(value : String, from : String, to : String) -> String {
+  let parts = value.split(from).to_array()
+  let mut out = ""
+  let mut i = 0
+  while i < parts.length() {
+    if i > 0 {
+      out = out + to
+    }
+    out = out + parts.at(i).to_owned()
+    i = i + 1
+  }
+  out
+}
+
+///|
+/// Escapes a string for a JSON string literal. Only the characters that can
+/// actually appear in CoNLL-U fields are handled; control characters below
+/// U+0020 other than tab/newline/CR are not produced by the format.
+fn json_escape(value : String) -> String {
+  let mut s = replace_all(value, "\\", "\\\\")
+  s = replace_all(s, "\"", "\\\"")
+  s = replace_all(s, "\n", "\\n")
+  s = replace_all(s, "\r", "\\r")
+  s = replace_all(s, "\t", "\\t")
+  s
+}
+
+///|
+fn json_str(value : String) -> String {
+  "\"" + json_escape(value) + "\""
+}
+
+///|
+fn token_json(row : @conllu.Token) -> String {
+  let kind = match row.kind {
+    @conllu.Word => "word"
+    @conllu.Multiword => "multiword"
+    @conllu.Empty => "empty"
+  }
+  "{\"kind\":" +
+  json_str(kind) +
+  ",\"id\":" +
+  json_str(row.id_raw) +
+  ",\"form\":" +
+  json_str(row.form) +
+  ",\"lemma\":" +
+  json_str(row.lemma) +
+  ",\"upos\":" +
+  json_str(row.upos) +
+  ",\"xpos\":" +
+  json_str(row.xpos) +
+  ",\"feats\":" +
+  json_str(row.feats) +
+  ",\"head\":" +
+  json_str(row.head_raw) +
+  ",\"deprel\":" +
+  json_str(row.deprel) +
+  ",\"deps\":" +
+  json_str(row.deps) +
+  ",\"misc\":" +
+  json_str(row.misc) +
+  ",\"line\":" +
+  row.line.to_string() +
+  "}"
+}
+
+///|
+/// Machine-readable form of `dump`: one JSON object for the whole file, with
+/// every token keeping its raw column values. Used by wrappers in other
+/// languages that do not want to parse the line-oriented dump.
+fn cmd_dump_json(path : String) -> Unit {
+  let sentences = load(path)
+  let mut out = "{\"source\":" + json_str(path) + ",\"sentences\":["
+  let mut i = 0
+  while i < sentences.length() {
+    let sentence = sentences.at(i)
+    if i > 0 {
+      out = out + ","
+    }
+    let mut multi = 0
+    let mut empty = 0
+    for row in sentence.rows() {
+      if row.is_multiword() {
+        multi = multi + 1
+      }
+      if row.is_empty_node() {
+        empty = empty + 1
+      }
+    }
+    out = out +
+      "{\"line\":" +
+      sentence.line.to_string() +
+      ",\"words\":" +
+      sentence.word_count().to_string() +
+      ",\"multiword\":" +
+      multi.to_string() +
+      ",\"empty\":" +
+      empty.to_string() +
+      ",\"comments\":["
+    let mut c = 0
+    for comment in sentence.comments() {
+      if c > 0 {
+        out = out + ","
+      }
+      out = out + json_str(comment)
+      c = c + 1
+    }
+    out = out + "],\"tokens\":["
+    let mut t = 0
+    for row in sentence.rows() {
+      if t > 0 {
+        out = out + ","
+      }
+      out = out + token_json(row)
+      t = t + 1
+    }
+    out = out + "]}"
+    i = i + 1
+  }
+  out = out + "]}"
+  println(out)
+}
+
+///|
 /// Emits one line per row in a stable, diff-friendly format:
 ///   S <words> <multiword> <empty> <comments>
 ///   <kind> <id> <form> <upos> <head> <deprel>
@@ -230,11 +355,21 @@ fn main {
         cmd_labels(args.at(2), args.at(3))
       }
     "dump" =>
-      if args.length() != 3 {
+      if args.length() == 3 {
+        cmd_dump(args.at(2))
+      } else if args.length() == 5 && args.at(3) == "--format" {
+        if args.at(4) == "json" {
+          cmd_dump_json(args.at(2))
+        } else if args.at(4) == "text" {
+          cmd_dump(args.at(2))
+        } else {
+          fail("unknown dump format \{args.at(4)} (expected text or json)")
+        }
+      } else if args.length() == 4 && args.at(3) == "--format=json" {
+        cmd_dump_json(args.at(2))
+      } else {
         usage()
         @env.exit(2)
-      } else {
-        cmd_dump(args.at(2))
       }
     "roundtrip" =>
       if args.length() != 3 {

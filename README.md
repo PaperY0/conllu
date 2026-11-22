@@ -94,6 +94,7 @@ moon run cmd/main -- stats      treebank.conllu   # 句数/词数/多词/空节�
 moon run cmd/main -- validate   treebank.conllu   # 诊断列表，有 error 时退出码 1
 moon run cmd/main -- eval       gold.conllu pred.conllu
 moon run cmd/main -- dump       treebank.conllu   # 归一化 dump，用于对拍
+moon run cmd/main -- dump       treebank.conllu --format json
 moon run cmd/main -- roundtrip  treebank.conllu   # 解析再序列化，校验无损
 ```
 
@@ -104,6 +105,8 @@ D 2001
 S 7 0 0 4
 w 1 From ADP 3 case
 ```
+
+需要结构化输出时用 `--format json`：一份文件一个 JSON 对象，句子带行号、注释、词/多词/空节点计数，token 保留原始 10 列值，方便别的语言写包装器。
 
 ## 差分对拍
 
