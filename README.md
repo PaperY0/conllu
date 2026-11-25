@@ -70,6 +70,8 @@ CoNLL-U 是 UD 树库（Universal Dependencies 项目，200+ 语言树库）的�
 moon add PaperY0/conllu
 ```
 
+工具链要求 `moonc ≥ 0.10.16`（开发环境为 0.10.22，`moon version --all` 可查）。
+
 ## 解析与序列化
 
 ```mbt check
@@ -456,4 +458,6 @@ moon run cmd/main -- labels gold.conllu pred.conllu --format csv
 
 ## 许可与语料
 
-代码 Apache-2.0。UD 树库是 CC BY-SA 4.0，只作为测试夹具下载，不进仓库、不进发布包；引用请遵循 Universal Dependencies 项目的署名要求。
+代码 Apache-2.0。UD 树库是 CC BY-SA 4.0，只作为测试夹具下载，不进仓库、不进发布包；引用请遵循 Universal Dependencies 项目的署名要求。第三方组件与许可证明细见 [NOTICE](NOTICE)。
+
+**验收自查**：对照验收标准的逐条证据、一键复现命令与测试覆盖率量化见 [VERIFICATION.md](VERIFICATION.md)。

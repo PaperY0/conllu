@@ -1,0 +1,27 @@
+# Third-party notices
+
+This project is original work licensed under Apache-2.0 (see `LICENSE`).
+No source code was copied from other open-source projects.
+
+## Runtime dependency
+
+- **moonbitlang/x** (https://github.com/moonbitlang/x), Apache-2.0.
+  Used for file-system access in the CLI (`cmd/main`). Installed by the
+  MoonBit toolchain via `moon.mod`; not vendored.
+
+## Test-only references (never linked, never redistributed)
+
+- **Python `conllu`** (https://github.com/EmilStenstrom/conllu), MIT license.
+  Used by `tools/diff_test.py` purely as a reference implementation whose
+  output is compared against this package's output. No code from it is
+  included here; it is installed by CI with `pip install conllu`.
+- **Universal Dependencies treebanks** (https://universaldependencies.org),
+  CC BY-SA 4.0. Downloaded by `tools/fetch_corpus.py` as test fixtures into
+  the git-ignored `data/ud/` directory. The corpora are not committed to the
+  repository and are not part of the mooncakes package. Attribution:
+  Universal Dependencies project and the individual treebank authors.
+
+## Bundled examples and golden fixtures
+
+`examples/*.conllu` and `tests/golden/*.conllu` are hand-written for this
+project and are covered by the same Apache-2.0 license as the code.

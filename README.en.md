@@ -70,6 +70,8 @@ One spine: text is parsed into `Array[Sentence]`, every analysis is a pure funct
 moon add PaperY0/conllu
 ```
 
+Requires `moonc >= 0.10.16` (developed on 0.10.22; check with `moon version --all`).
+
 ## Parsing and serialization
 
 ```mbt
@@ -374,4 +376,6 @@ moon run cmd/main -- labels gold.conllu pred.conllu --format csv
 
 ## License and data
 
-Code is Apache-2.0. UD treebanks are CC BY-SA 4.0 and are downloaded only as test fixtures — never committed to the repository or included in the published package. Please follow the Universal Dependencies project's attribution requirements when citing them.
+Code is Apache-2.0. UD treebanks are CC BY-SA 4.0 and are downloaded only as test fixtures — never committed to the repository or included in the published package. Please follow the Universal Dependencies project's attribution requirements when citing them. See [NOTICE](NOTICE) for third-party components and licenses.
+
+**Acceptance verification**: item-by-item evidence against the acceptance criteria, one-command reproduction steps and measured test coverage are in [VERIFICATION.md](VERIFICATION.md).
