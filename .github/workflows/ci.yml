@@ -24,6 +24,8 @@ jobs:
         run: moon update
       - name: Check
         run: moon check --target ${{ matrix.target }}
+      - name: Build
+        run: moon build --target ${{ matrix.target }}
       - name: Test
         run: moon test --target ${{ matrix.target }}
 
